@@ -168,7 +168,162 @@ sudo tailscale up
 
 ---
 
-## 8. Phase 6 — Alerts (Later)
+## 8. Security
+
+This is a camera **and microphone inside your home** with remote access and a
+two-way audio path into the speaker — treat it accordingly. The chosen stack is
+secure by design; the rest is configuration and discipline. Work top-down:
+network exposure is the biggest risk.
+
+### 8.1 Network exposure (highest priority)
+- **Never port-forward the Pi or expose it directly to the internet.**
+  Public-facing cameras are constantly scanned and are the #1 breach vector.
+- **Tailscale is the main defence** — the Pi sits on a private encrypted mesh;
+  only your logged-in devices can reach it. No open ports, nothing publicly
+  discoverable. Keep access Tailscale-only.
+- Avoid UPnP / port-forward tutorials — they trade privacy for convenience.
+- Optionally use **Tailscale ACLs** to restrict which devices can reach the Pi.
+
+### 8.2 Host hardening (the Pi)
+- **No default logins** — strong, unique password; never leave `pi`/`raspberry`.
+- **SSH keys, not passwords** — generate a key, then disable password auth and
+  root login in `/etc/ssh/sshd_config`.
+- **Patch regularly** — `sudo apt update && sudo apt full-upgrade`; consider
+  `unattended-upgrades` for automatic security updates.
+- **Firewall** — `ufw` allowing only SSH + the Tailscale interface; deny the
+  rest inbound.
+- **Minimal software** — Pi OS Lite already keeps the attack surface small.
+
+### 8.3 Stream & MediaMTX
+- **Authentication** — set per-path credentials in `mediamtx.yml` for both
+  viewing *and* publishing, so nobody on the network can silently open the feed.
+- **Encryption** — WebRTC media is encrypted (DTLS-SRTP) by default. Enable
+  **HTTPS/TLS** for the web/signaling layer, or rely on Tailscale's encryption
+  if access is Tailscale-only.
+- **Lock down the publish endpoint especially** — that's the path into your
+  speaker.
+
+### 8.4 Two-way audio (extra caution)
+The return audio path lets a remote party **transmit into your home**, so:
+- Require authentication on the publish path (above).
+- Keep it reachable only over Tailscale.
+- Consider a **push-to-talk** toggle so the mic path is active only when you
+  deliberately use it.
+
+### 8.5 Companion app / PWA
+- Serve it over **HTTPS only**.
+- **Never hardcode credentials in client-side JS** — anyone can read it. Use
+  MediaMTX's auth flow, or keep the whole thing behind Tailscale so the network
+  is the auth boundary.
+- If you add ntfy alerts later, use a **private/random topic name** — public
+  ntfy topics are readable by anyone who knows the name.
+
+### 8.6 Physical & privacy
+- Aim the camera at only what you need (the cat's spots), not the whole flat or
+  neighbours' windows.
+- A lens shutter/tape or a power switch is a reasonable habit for when you're
+  home.
+- Keep any future recordings **local** (Pi/SD), not third-party cloud, unless
+  it's trusted and encrypted.
+
+### 8.7 Priority order
+1. Tailscale-only access, **zero port forwarding**.
+2. SSH keys + strong password + firewall.
+3. MediaMTX authentication, especially the **publish (talk)** path.
+4. HTTPS/TLS for the web/app layer.
+5. Keep everything patched.
+
+---
+
+## 9. Companion App
+
+> **Target platform: Android.** This simplifies things — Android has full PWA
+> support including background **push notifications** (unlike iOS), so a PWA can
+> cover live view *and* future alerts without going native.
+
+"Accessing the camera" over the network is already solved by MediaMTX/WebRTC —
+a companion app is really about wrapping that stream in a nicer, purpose-built
+interface (live view, a big **Talk to cat** button, fullscreen, later: alerts)
+instead of typing a URL into a browser.
+
+### 9.1 Options (least → most effort)
+
+| Option | What it is | Pros | Cons | Effort |
+|--------|------------|------|------|--------|
+| **A. PWA** ⭐ | Installable web app (home-screen icon, fullscreen) | Reuses existing WebRTC, no app store, **background push works on Android**, installs via Chrome | Not in the Play Store (side-installs from browser) | Low |
+| **B. TWA / Native + WebView** | Wrap the PWA in a **Trusted Web Activity** (or React Native / Kotlin shell) for a real Play Store app | Play Store listing, native splash/icon, same web code | Play Console account + signing setup | Medium |
+| **C. Fully native (Kotlin) WebRTC** | Consume WebRTC/RTSP with native Android SDKs | Best performance & control | Most WebRTC plumbing, overkill for one camera | High |
+
+### 9.2 Recommendation
+Start with a **PWA (Option A)** — on Android it gives a real "app" feel
+(installable icon, custom two-way-talk button, live view, and background push for
+alerts) while reusing 100% of the existing stack. If you later want a proper
+**Play Store** presence, wrap the same PWA in a **Trusted Web Activity (TWA)**
+via Bubblewrap (Option B) — no rewrite needed.
+
+### 9.3 PWA build steps
+1. **Page** — a small HTML/JS page that embeds the MediaMTX WebRTC stream
+   (point it at `http://<pi-tailscale-ip>:8889/cam`). Add your own controls:
+   view, mute, fullscreen, push-to-talk.
+2. **Manifest** — add a `manifest.json` (app name, icons, `display: standalone`)
+   so it installs to the home screen.
+3. **Service worker** — register a minimal service worker to make it installable
+   and cache the shell (not the live stream).
+4. **Serve over HTTPS** — required for PWAs and for the phone mic (getUserMedia).
+   Serve it from the Pi (MediaMTX/a small web server) or any host reachable over
+   Tailscale.
+5. **Install** — open it in **Chrome on Android** → "Add to Home Screen" /
+   "Install app" → launches fullscreen like a native app.
+
+### 9.4 Architecture
+
+```mermaid
+graph LR
+    Cam[Webcam + Mic] --> FF[FFmpeg]
+    FF --> MTX[MediaMTX WebRTC]
+    Spk[Pi Speaker] --> MTX
+    MTX -->|WebRTC over Tailscale| App[Companion PWA/App]
+    App -->|phone mic| MTX
+```
+
+> The app only needs to reach the Pi's **Tailscale IP**, so remote access keeps
+> working anywhere without exposing the Pi publicly. Follow the Security section
+> — HTTPS only, no hardcoded credentials in client-side JS.
+
+### 9.5 "Being viewed" audible indicator
+
+The Pi should make a noise whenever the camera is being watched, so anyone in the
+flat knows the feed is live. MediaMTX has a per-path **`runOnRead`** hook that
+fires the moment a client starts reading the stream, and **`runOnUnread`** when
+they stop — perfect for playing a chime through the Pi speaker.
+
+Add to the `cam` path in `mediamtx.yml`:
+
+```yaml
+paths:
+  cam:
+    # ... existing runOnInit / runOnInitRestart ...
+    runOnRead: aplay /home/<user>/cat-cam/viewing-start.wav
+    runOnUnread: aplay /home/<user>/cat-cam/viewing-stop.wav
+```
+
+Notes:
+- Put a short `.wav` chime at those paths (or generate one with
+  `speaker-test` / `ffmpeg`). Keep it brief so it doesn't fight the two-way audio.
+- `runOnRead` runs **once per viewer session**. If you only ever have one viewer
+  (you), it effectively means "someone opened the app."
+- If the speaker is on a specific ALSA device, target it explicitly, e.g.
+  `aplay -D hw:X,Y /home/<user>/cat-cam/viewing-start.wav`.
+- Optional: have the same hook also send a phone push via `ntfy` so you get a
+  "camera opened" notification as well as the in-room chime.
+
+> Consider whether you want the chime for *every* connect. Because it plays on
+> the shared speaker, it doubles as a privacy signal to anyone in the flat —
+> which is a nice, honest default for an always-available camera.
+
+---
+
+## 10. Phase 6 — Alerts (Later)
 
 Once live viewing is rock-solid, add motion detection without disturbing the
 streaming layer:
@@ -181,7 +336,7 @@ streaming layer:
 
 ---
 
-## 9. Make It Permanent (Recommended once working)
+## 11. Make It Permanent (Recommended once working)
 
 - Turn MediaMTX into a **systemd service** so it starts on boot and restarts on
   failure.
@@ -189,7 +344,7 @@ streaming layer:
 
 ---
 
-## 10. Build Order Checklist
+## 12. Build Order Checklist
 
 - [ ] **Phase 1** — OS installed, SSH works, all 3 devices detected, `hw:`
       addresses recorded.
@@ -197,12 +352,15 @@ streaming layer:
 - [ ] **Phase 3** — Live video + mic audio on phone browser.
 - [ ] **Phase 4** — Two-way talk working.
 - [ ] **Phase 5** — Tailscale remote access.
+- [ ] **Security** — Tailscale-only, SSH keys, firewall, MediaMTX auth, HTTPS.
+- [ ] **Companion app** — PWA with live view + push-to-talk, served over HTTPS.
+- [ ] **Viewing indicator** — Pi plays a chime via `runOnRead` when watched.
 - [ ] **Phase 6** — Motion alerts.
 - [ ] **Hardening** — systemd service, config in git.
 
 ---
 
-## 11. Handy References
+## 13. Handy References
 
 - MediaMTX: https://github.com/bluenviron/mediamtx
 - FFmpeg V4L2/ALSA capture: https://trac.ffmpeg.org/wiki/Capture/Webcam
