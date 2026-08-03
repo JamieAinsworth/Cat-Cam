@@ -34,12 +34,12 @@ browser tab. Low latency, and a built-in publish/view web page.
 - 64GB microSD card
 
 ### Still to buy
-- [ ] **USB webcam with built-in mic** — confirm it's **UVC-compatible** (most
+- [/] **USB webcam with built-in mic** — confirm it's **UVC-compatible** (most
       are) so Linux detects it without drivers. Check reviews mention Linux/`v4l2`.
 - [ ] **Speaker** — a **USB speaker** is the least painful option (shows up as
       its own audio device). Alternatively a small amp + speaker, or a USB DAC.
-- [ ] **Official Pi 5 power supply** — undervoltage causes camera/USB dropouts.
-- [ ] **Case** (optional) and a small **tripod or mount** to aim at the cat's
+- [/] **Official Pi 5 power supply** — undervoltage causes camera/USB dropouts.
+- [/] **Case** (optional) and a small **tripod or mount** to aim at the cat's
       favourite spot.
 
 ### Nice to have
