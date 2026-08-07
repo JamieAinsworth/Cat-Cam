@@ -276,9 +276,14 @@ function setStatus(cls, text) {
 }
 
 function buildHeaders() {
-  const h = { 'Content-Type': 'application/sdp' };
-  if (cfg.user && cfg.pass) h['Authorization'] = 'Basic ' + btoa(`${cfg.user}:${cfg.pass}`);
-  return h;
+  return { 'Content-Type': 'application/sdp' };
+}
+
+function authUrl(base) {
+  if (!cfg.user && !cfg.pass) return base;
+  const u = encodeURIComponent(cfg.user);
+  const p = encodeURIComponent(cfg.pass);
+  return `${base}?user=${u}&pass=${p}`;
 }
 
 async function connect() {
@@ -311,7 +316,7 @@ async function connect() {
 
   let res;
   try {
-    res = await fetch(`${cfg.host}/${cfg.path}/whep`, {
+    res = await fetch(authUrl(`${cfg.host}/${cfg.path}/whep`), {
       method: 'POST',
       headers: buildHeaders(),
       body: pc.localDescription.sdp,
@@ -386,7 +391,7 @@ async function startPtt() {
   await waitForIce(pc);
 
   try {
-    const res = await fetch(`${cfg.host}/${cfg.path}/whip`, {
+    const res = await fetch(authUrl(`${cfg.host}/${cfg.path}/whip`), {
       method: 'POST',
       headers: buildHeaders(),
       body: pc.localDescription.sdp,
