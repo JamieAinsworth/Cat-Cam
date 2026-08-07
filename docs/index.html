@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <title>Cat Cam</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1c1c1e;
+      --border: #38383a;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --text: #f5f5f7;
+      --muted: #8e8e93;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Setup screen ── */
+    #setup {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 32px 24px;
+      height: 100%;
+      justify-content: center;
+      max-width: 420px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .setup-title { font-size: 1.75rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .setup-sub   { font-size: 0.9rem; color: var(--muted); text-align: center; margin-bottom: 8px; }
+
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+    input {
+      padding: 13px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1rem;
+      width: 100%;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .btn-primary {
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .btn-primary:active { opacity: 0.8; }
+
+    /* ── Camera screen ── */
+    #cam { display: none; flex-direction: column; height: 100%; }
+
+    #video-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+      touch-action: none;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transform-origin: center center;
+      will-change: transform;
+    }
+
+    #status-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    .s-live       { color: #4ade80; }
+    .s-connecting { color: #facc15; }
+    .s-error      { color: #f87171; }
+
+    #unmute-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.45);
+      cursor: pointer;
+    }
+    #unmute-overlay span {
+      background: rgba(0,0,0,0.75);
+      padding: 12px 22px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+    }
+
+    /* ── Controls bar ── */
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .icon-btn {
+      width: 46px;
+      height: 46px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1.15rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-btn:active { opacity: 0.6; }
+
+    #ptt-btn {
+      flex: 1;
+      height: 46px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    #ptt-btn.talking   { background: var(--danger); border-color: var(--danger); }
+    #ptt-btn:disabled  { opacity: 0.35; }
+  </style>
+</head>
+<body>
+
+<!-- ── Setup ──────────────────────────────────────────────────────────────── -->
+<div id="setup">
+  <p class="setup-title">🐱 Cat Cam</p>
+  <p class="setup-sub">Connect to your Raspberry Pi stream</p>
+
+  <div class="field-group">
+    <span class="field-label">Server URL</span>
+    <input id="cfg-host" type="url" placeholder="https://rhyho-pi.tailcceb24.ts.net:8889" inputmode="url">
+  </div>
+  <div class="field-group">
+    <span class="field-label">Stream path</span>
+    <input id="cfg-path" type="text" placeholder="cam" value="cam">
+  </div>
+  <div class="field-group">
+    <span class="field-label">Username</span>
+    <input id="cfg-user" type="text" autocomplete="username">
+  </div>
+  <div class="field-group">
+    <span class="field-label">Password</span>
+    <input id="cfg-pass" type="password" autocomplete="current-password">
+  </div>
+
+  <button class="btn-primary" id="connect-btn">Connect</button>
+</div>
+
+<!-- ── Camera ─────────────────────────────────────────────────────────────── -->
+<div id="cam">
+  <div id="video-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="status-badge" class="s-connecting">Connecting…</div>
+    <div id="unmute-overlay"><span>▶ Tap to enable audio</span></div>
+  </div>
+  <div id="controls">
+    <button class="icon-btn" id="zoom-out-btn">−</button>
+    <button id="ptt-btn" disabled>Hold to Talk</button>
+    <button class="icon-btn" id="zoom-in-btn">+</button>
+    <button class="icon-btn" id="settings-btn">⚙︎</button>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'catcam_v1';
+
+// ── Config ──────────────────────────────────────────────────────────────────
+
+function loadCfg() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? {}; }
+  catch { return {}; }
+}
+function saveCfg(c) { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); }
+
+const $ = id => document.getElementById(id);
+const saved = loadCfg();
+if (saved.host) $('cfg-host').value = saved.host;
+if (saved.path) $('cfg-path').value = saved.path;
+if (saved.user) $('cfg-user').value = saved.user;
+if (saved.pass) $('cfg-pass').value = saved.pass;
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+let cfg = null;
+let viewPc = null;
+let pttPc = null;
+let pttStream = null;
+let zoom = 1;
+let reconnectTimer = null;
+
+// ── Setup ───────────────────────────────────────────────────────────────────
+
+$('connect-btn').addEventListener('click', () => {
+  const host = $('cfg-host').value.replace(/\/+$/, '');
+  if (!host) { $('cfg-host').focus(); return; }
+  cfg = {
+    host,
+    path: $('cfg-path').value.trim() || 'cam',
+    user: $('cfg-user').value.trim(),
+    pass: $('cfg-pass').value,
+  };
+  saveCfg(cfg);
+  $('setup').style.display = 'none';
+  $('cam').style.display = 'flex';
+  connect();
+});
+
+$('settings-btn').addEventListener('click', () => {
+  cleanup();
+  $('cam').style.display = 'none';
+  $('setup').style.display = 'flex';
+  $('unmute-overlay').style.display = 'flex';
+  $('ptt-btn').disabled = true;
+});
+
+// ── WHEP viewer ─────────────────────────────────────────────────────────────
+
+function setStatus(cls, text) {
+  const el = $('status-badge');
+  el.className = cls;
+  el.textContent = text;
+}
+
+function buildHeaders() {
+  const h = { 'Content-Type': 'application/sdp' };
+  if (cfg.user && cfg.pass) h['Authorization'] = 'Basic ' + btoa(`${cfg.user}:${cfg.pass}`);
+  return h;
+}
+
+async function connect() {
+  clearTimeout(reconnectTimer);
+  setStatus('s-connecting', 'Connecting…');
+
+  if (viewPc) { viewPc.close(); viewPc = null; }
+
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  viewPc = pc;
+
+  const stream = new MediaStream();
+  $('video').srcObject = stream;
+  pc.ontrack = e => stream.addTrack(e.track);
+
+  pc.onconnectionstatechange = () => {
+    if (pc !== viewPc) return;
+    const s = pc.connectionState;
+    if (s === 'connected')    setStatus('s-live', '● Live');
+    if (s === 'disconnected') { setStatus('s-connecting', 'Reconnecting…'); scheduleReconnect(); }
+    if (s === 'failed')       { setStatus('s-error', 'Connection failed'); scheduleReconnect(); }
+  };
+
+  pc.addTransceiver('video', { direction: 'recvonly' });
+  pc.addTransceiver('audio', { direction: 'recvonly' });
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await waitForIce(pc);
+
+  let res;
+  try {
+    res = await fetch(`${cfg.host}/${cfg.path}/whep`, {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: pc.localDescription.sdp,
+    });
+  } catch {
+    setStatus('s-error', 'Cannot reach server');
+    scheduleReconnect(8000);
+    return;
+  }
+
+  if (res.status === 401) { setStatus('s-error', '401 — check credentials'); return; }
+  if (!res.ok)            { setStatus('s-error', `Error ${res.status}`); scheduleReconnect(); return; }
+
+  await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() });
+}
+
+function scheduleReconnect(ms = 5000) {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connect, ms);
+}
+
+function waitForIce(pc) {
+  return new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') { resolve(); return; }
+    const cb = () => {
+      if (pc.iceGatheringState === 'complete') {
+        pc.removeEventListener('icegatheringstatechange', cb);
+        resolve();
+      }
+    };
+    pc.addEventListener('icegatheringstatechange', cb);
+    setTimeout(resolve, 5000); // fallback
+  });
+}
+
+function cleanup() {
+  clearTimeout(reconnectTimer);
+  if (viewPc) { viewPc.close(); viewPc = null; }
+  stopPtt();
+}
+
+// ── Unmute overlay ──────────────────────────────────────────────────────────
+
+$('unmute-overlay').addEventListener('click', () => {
+  const v = $('video');
+  v.muted = false;
+  v.play().catch(() => {});
+  $('unmute-overlay').style.display = 'none';
+  $('ptt-btn').disabled = false;
+});
+
+// ── Push-to-talk (WHIP) ─────────────────────────────────────────────────────
+
+async function startPtt() {
+  if (!pttStream) {
+    try {
+      pttStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch {
+      alert('Microphone access denied');
+      return;
+    }
+  }
+
+  if (pttPc) { pttPc.close(); }
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  pttPc = pc;
+
+  pttStream.getAudioTracks().forEach(t => pc.addTrack(t, pttStream));
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await waitForIce(pc);
+
+  try {
+    const res = await fetch(`${cfg.host}/${cfg.path}/whip`, {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: pc.localDescription.sdp,
+    });
+    if (res.ok) {
+      await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() });
+      $('ptt-btn').classList.add('talking');
+      $('ptt-btn').textContent = '🎤 Talking…';
+    }
+  } catch { /* server unreachable */ }
+}
+
+function stopPtt() {
+  if (pttPc) { pttPc.close(); pttPc = null; }
+  $('ptt-btn').classList.remove('talking');
+  $('ptt-btn').textContent = 'Hold to Talk';
+}
+
+const pttBtn = $('ptt-btn');
+pttBtn.addEventListener('pointerdown',   e => { e.preventDefault(); startPtt(); });
+pttBtn.addEventListener('pointerup',     e => { e.preventDefault(); stopPtt(); });
+pttBtn.addEventListener('pointerleave',  () => stopPtt());
+pttBtn.addEventListener('pointercancel', () => stopPtt());
+
+// ── Zoom ────────────────────────────────────────────────────────────────────
+
+const videoEl = $('video');
+
+function setZoom(z) {
+  zoom = Math.min(4, Math.max(1, z));
+  videoEl.style.transform = zoom === 1 ? '' : `scale(${zoom})`;
+}
+
+$('zoom-in-btn').addEventListener('click',  () => setZoom(zoom + 0.5));
+$('zoom-out-btn').addEventListener('click', () => setZoom(zoom - 0.5));
+
+// Pinch to zoom
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+
+$('video-wrap').addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    pinchStartDist = getTouchDist(e);
+    pinchStartZoom = zoom;
+  }
+}, { passive: true });
+
+$('video-wrap').addEventListener('touchmove', e => {
+  if (e.touches.length !== 2 || !pinchStartDist) return;
+  setZoom(pinchStartZoom * (getTouchDist(e) / pinchStartDist));
+}, { passive: true });
+
+$('video-wrap').addEventListener('touchend', () => { pinchStartDist = 0; });
+
+function getTouchDist(e) {
+  return Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY
+  );
+}
+
+// ── Service Worker ──────────────────────────────────────────────────────────
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

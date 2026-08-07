@@ -1,0 +1,19 @@
+{
+  "name": "Cat Cam",
+  "short_name": "Cat Cam",
+  "description": "Live cat monitoring — video, audio and push-to-talk",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
