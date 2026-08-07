@@ -276,15 +276,12 @@ function setStatus(cls, text) {
 }
 
 function buildHeaders() {
-  return { 'Content-Type': 'application/sdp' };
+  const h = { 'Content-Type': 'application/sdp' };
+  if (cfg.user && cfg.pass) h['Authorization'] = 'Basic ' + btoa(`${cfg.user}:${cfg.pass}`);
+  return h;
 }
 
-function authUrl(base) {
-  if (!cfg.user && !cfg.pass) return base;
-  const u = encodeURIComponent(cfg.user);
-  const p = encodeURIComponent(cfg.pass);
-  return `${base}?user=${u}&pass=${p}`;
-}
+function authUrl(base) { return base; }
 
 async function connect() {
   clearTimeout(reconnectTimer);
