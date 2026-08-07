@@ -194,9 +194,7 @@
   </div>
   <div id="controls">
     <button class="icon-btn muted" id="mute-btn">🔇</button>
-    <button class="icon-btn" id="zoom-out-btn">−</button>
-    <button id="ptt-btn">Hold to Talk</button>
-    <button class="icon-btn" id="zoom-in-btn">+</button>
+      <button id="ptt-btn">Hold to Talk</button>
     <button class="icon-btn" id="settings-btn">⚙︎</button>
   </div>
 </div>
@@ -385,10 +383,10 @@ async function startPtt() {
     });
     if (res.ok) {
       await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() });
-      $('ptt-btn').classList.add('talking');
-      $('ptt-btn').textContent = '🎤 Mic On';
+    } else {
+      stopPtt(); // revert if server rejected
     }
-  } catch { /* server unreachable */ }
+  } catch { stopPtt(); }
 }
 
 function stopPtt() {
@@ -403,7 +401,13 @@ const pttBtn = $('ptt-btn');
 pttBtn.textContent = '🎤 Mic Off';
 pttBtn.addEventListener('click', () => {
   pttActive = !pttActive;
-  if (pttActive) startPtt(); else stopPtt();
+  if (pttActive) {
+    pttBtn.classList.add('talking');
+    pttBtn.textContent = '🎤 Mic On';
+    startPtt();
+  } else {
+    stopPtt();
+  }
 });
 
 // ── Zoom ────────────────────────────────────────────────────────────────────
@@ -426,9 +430,6 @@ function clampPan() {
   panX = Math.min(maxX, Math.max(-maxX, panX));
   panY = Math.min(maxY, Math.max(-maxY, panY));
 }
-
-$('zoom-in-btn').addEventListener('click',  () => setZoom(zoom + 0.5));
-$('zoom-out-btn').addEventListener('click', () => setZoom(zoom - 0.5));
 
 // Unified touch handler: 1 finger = pan, 2 fingers = pinch zoom
 let pinchStartDist = 0;
