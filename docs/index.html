@@ -391,6 +391,7 @@ async function startPtt() {
 
 function stopPtt() {
   if (pttPc) { pttPc.close(); pttPc = null; }
+  if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
   pttActive = false;
   $('ptt-btn').classList.remove('talking');
   $('ptt-btn').textContent = '🎤 Mic Off';
