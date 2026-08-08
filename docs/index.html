@@ -53,7 +53,7 @@
       height: 180px;
       border-radius: 20px;
       object-fit: cover;
-      object-position: center 20%;
+      object-position: center top;
       display: block;
       margin: 0 auto 16px;
       border: 3px solid var(--border);
@@ -71,21 +71,25 @@
       font-size: 1rem;
       width: 100%;
       outline: none;
+      text-align: center;
     }
     input:focus { border-color: var(--accent); }
 
     .btn-primary {
       padding: 14px;
-      border-radius: 12px;
+      border-radius: 50px;
       border: none;
-      background: var(--accent);
+      background: rgba(255,255,255,0.12);
       color: #fff;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
       margin-top: 4px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: background 0.2s;
     }
-    .btn-primary:active { opacity: 0.8; }
+    .btn-primary:active { background: rgba(255,255,255,0.18); }
 
     .btn-text {
       background: none; border: none; color: var(--muted);
@@ -308,11 +312,11 @@
 <!-- ── Setup ──────────────────────────────────────────────────────────────── -->
 <div id="setup">
   <img id="cat-photo" src="images/IMG20260730084312~2.jpg" alt="Cat">
-  <p class="setup-title">🐱 Cat Cam</p>
+  <p class="setup-title">Vivienne Checker</p>
 
   <!-- Shown when credentials already saved -->
   <div id="quick-connect" style="display:none;flex-direction:column;gap:12px;align-items:center">
-    <p id="quick-host" class="setup-sub"></p>
+    <p id="quick-host" class="setup-sub" style="display:none"></p>
     <p id="setup-error"></p>
     <button class="btn-primary" id="quick-connect-btn" style="width:100%">Connect</button>
     <button class="btn-text" id="edit-creds-btn">Edit credentials</button>
@@ -320,15 +324,7 @@
 
   <!-- Full credentials form -->
   <div id="full-form" style="display:flex;flex-direction:column;gap:12px">
-    <p class="setup-sub">Connect to your Raspberry Pi stream</p>
-    <div class="field-group">
-      <span class="field-label">Server URL</span>
-      <input id="cfg-host" type="url" placeholder="https://rhyho-pi.tailcceb24.ts.net:8889" inputmode="url">
-    </div>
-    <div class="field-group">
-      <span class="field-label">Stream path</span>
-      <input id="cfg-path" type="text" placeholder="cam" value="cam">
-    </div>
+    <input id="cfg-host" type="url" style="display:none">
     <div class="field-group">
       <span class="field-label">Username</span>
       <input id="cfg-user" type="text" autocomplete="username">
@@ -466,7 +462,7 @@ $('cancel-edit-btn').addEventListener('click', () => {
 
 $('connect-btn').addEventListener('click', () => {
   const host = $('cfg-host').value.replace(/\/+$/, '');
-  if (!host) { $('cfg-host').focus(); return; }
+  if (!host) return;
   cfg = {
     host,
     path: $('cfg-path').value.trim() || 'cam',
