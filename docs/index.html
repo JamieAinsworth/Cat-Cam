@@ -527,7 +527,7 @@
 const STORAGE_KEY = 'catcam_v1';
 
 // ── Ripple effect ────────────────────────────────────────────────────────────
-document.querySelectorAll('.btn-primary, .btn-text').forEach(btn => {
+document.querySelectorAll('.btn-primary').forEach(btn => {
   btn.addEventListener('pointerdown', e => {
     const r = document.createElement('span');
     const rect = btn.getBoundingClientRect();
