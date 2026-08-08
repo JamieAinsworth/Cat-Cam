@@ -10,17 +10,17 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
 
 ## 1. Base Setup & Devices 🟢
 
-- [ ] **AC1.1 — Pi reachable**
+- [x] **AC1.1 — Pi reachable**
   *Given* the Pi is powered and on the network,
   *when* I SSH to it from my laptop,
   *then* I get a shell prompt without using a password (key-based auth).
 
-- [ ] **AC1.2 — Camera detected**
+- [x] **AC1.2 — Camera detected**
   *Given* the webcam is plugged in,
   *when* I run `v4l2-ctl --list-devices`,
   *then* the camera appears with a `/dev/video*` node.
 
-- [ ] **AC1.3 — Mic detected**
+- [x] **AC1.3 — Mic detected**
   *Given* the webcam mic is connected,
   *when* I run `arecord -l`,
   *then* the capture device is listed and a 5-second test recording plays back
@@ -35,18 +35,18 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
 
 ## 2. Live Video 🟢
 
-- [ ] **AC2.1 — Local live view**
+- [x] **AC2.1 — Local live view**
   *Given* MediaMTX and FFmpeg are running,
   *when* I open `http://<pi-ip>:8889/cam` on a device on the same Wi-Fi,
   *then* I see live video of the room within ~2 seconds of latency.
 
-- [ ] **AC2.2 — Acceptable quality**
+- [x] **AC2.2 — Acceptable quality**
   *Given* the stream is live,
   *when* I watch for 60 seconds,
   *then* the video is at least 720p (or a chosen resolution) and does not stall
   or drop the connection.
 
-- [ ] **AC2.3 — Auto-recovery**
+- [x] **AC2.3 — Auto-recovery**
   *Given* the stream is interrupted (e.g. camera unplugged/replugged),
   *when* the device returns,
   *then* the stream resumes automatically without manual restart
@@ -56,7 +56,7 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
 
 ## 3. Audio — Listen In 🟢
 
-- [ ] **AC3.1 — Hear the flat**
+- [x] **AC3.1 — Hear the flat**
   *Given* the stream is live,
   *when* I view the feed on my phone,
   *then* I can hear ambient audio from the room in sync with the video.
@@ -71,7 +71,7 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
   *then* my voice plays clearly through the Pi speaker in the flat within a
   couple of seconds.
 
-- [ ] **AC4.2 — Push-to-talk control**
+- [x] **AC4.2 — Push-to-talk control**
   *Given* the talk feature exists,
   *when* I am not actively holding/enabling talk,
   *then* my phone mic is **not** transmitting to the Pi.
@@ -85,13 +85,13 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
 
 ## 5. Remote Access 🟢
 
-- [ ] **AC5.1 — Works away from home**
+- [x] **AC5.1 — Works away from home**
   *Given* Tailscale is installed on the Pi and my phone,
   *when* I am on mobile data (off home Wi-Fi) and open
   `http://<pi-tailscale-ip>:8889/cam`,
   *then* live video + audio work as they do at home.
 
-- [ ] **AC5.2 — Not publicly exposed**
+- [x] **AC5.2 — Not publicly exposed**
   *Given* the system is deployed,
   *when* I scan the Pi's public IP / router for open camera ports,
   *then* no camera or MediaMTX port is reachable from the public internet.
@@ -100,12 +100,12 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
 
 ## 6. Security 🟢
 
-- [ ] **AC6.1 — No default credentials**
+- [x] **AC6.1 — No default credentials**
   *Given* the Pi is configured,
   *when* I attempt to log in with `pi`/`raspberry`,
   *then* it fails.
 
-- [ ] **AC6.2 — SSH hardened**
+- [x] **AC6.2 — SSH hardened**
   *Given* `sshd_config` is set,
   *when* I attempt password-based SSH login,
   *then* it is rejected (keys only), and root login is disabled.
@@ -115,12 +115,12 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
   *when* I check allowed ports,
   *then* only SSH and the Tailscale interface are permitted inbound.
 
-- [ ] **AC6.4 — Stream requires auth**
+- [x] **AC6.4 — Stream requires auth**
   *Given* MediaMTX auth is configured,
   *when* an unauthenticated client tries to view or publish,
   *then* access is denied.
 
-- [ ] **AC6.5 — Encrypted transport**
+- [x] **AC6.5 — Encrypted transport**
   *Given* the app connects to the stream,
   *when* traffic is inspected,
   *then* media is encrypted (WebRTC DTLS-SRTP) and the web layer is HTTPS or
@@ -135,23 +135,23 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
 
 ## 7. Companion App (Android PWA) 🟢
 
-- [ ] **AC7.1 — Installable**
+- [x] **AC7.1 — Installable**
   *Given* the PWA is served over HTTPS,
   *when* I open it in Chrome on Android,
   *then* I can install it to the home screen and it launches fullscreen.
 
-- [ ] **AC7.2 — Core controls**
+- [x] **AC7.2 — Core controls**
   *Given* the app is open,
   *when* I use it,
   *then* I can see live video, hear audio, toggle push-to-talk, and go
   fullscreen.
 
-- [ ] **AC7.3 — No secrets in client**
+- [x] **AC7.3 — No secrets in client**
   *Given* the app's client-side code,
   *when* I inspect it,
   *then* no credentials are hardcoded in the JavaScript.
 
-- [ ] **AC7.4 — Remote-capable**
+- [x] **AC7.4 — Remote-capable**
   *Given* the app is installed,
   *when* I am off home Wi-Fi (with Tailscale up),
   *then* the app connects to the camera successfully.
@@ -199,12 +199,12 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
 
 ## 10. Reliability & Operations 🔵
 
-- [ ] **AC10.1 — Starts on boot**
+- [x] **AC10.1 — Starts on boot**
   *Given* MediaMTX is a systemd service,
   *when* the Pi reboots,
   *then* streaming comes back up automatically without manual intervention.
 
-- [ ] **AC10.2 — Survives crashes**
+- [x] **AC10.2 — Survives crashes**
   *Given* the service fails,
   *when* the process dies,
   *then* systemd restarts it automatically.
