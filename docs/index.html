@@ -167,46 +167,55 @@
 
     /* ── Controls bar ── */
     #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      align-items: center;
-      gap: 10px;
+      gap: 8px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 24px;
       padding: 12px 16px;
-      padding-bottom: max(12px, env(safe-area-inset-bottom));
-      background: var(--surface);
-      border-top: 1px solid var(--border);
+      z-index: 100;
     }
 
     .icon-btn {
-      width: 46px;
-      height: 46px;
+      width: 42px;
+      height: 42px;
       flex-shrink: 0;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 1.15rem;
+      border-radius: 50%;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 1.2rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: all 0.2s;
     }
-    .icon-btn:active { opacity: 0.6; }
+    .icon-btn:active { background: rgba(255,255,255,0.1); }
 
     #ptt-btn {
-      flex: 1;
-      height: 46px;
-      border-radius: 10px;
-      border: 1.5px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 0.95rem;
-      font-weight: 600;
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 1.2rem;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       user-select: none;
       -webkit-user-select: none;
-      transition: background 0.12s, border-color 0.12s;
+      transition: all 0.2s;
     }
-    #ptt-btn.talking   { background: var(--danger); border-color: var(--danger); }
+    #ptt-btn.talking   { background: rgba(34, 197, 94, 0.3); color: #22c55e; }
     #ptt-btn:disabled  { opacity: 0.35; }
 
     /* ── Camera settings panel ── */
@@ -321,9 +330,9 @@
   </div>
   <div id="controls">
     <button class="icon-btn muted" id="mute-btn">🔇</button>
-      <button id="ptt-btn">Hold to Talk</button>
-      <button class="icon-btn" id="cam-settings-btn">📷</button>
-    </div>
+    <button class="icon-btn" id="ptt-btn">🎤</button>
+    <button class="icon-btn" id="cam-settings-btn">📷</button>
+  </div>
 </div>
 
 <!-- Camera settings panel -->
