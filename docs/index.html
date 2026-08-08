@@ -530,6 +530,17 @@ function showLoading() {
   }, 300);
 }
 
+let wakeLock = null;
+async function acquireWakeLock() {
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && isInCam) acquireWakeLock();
+});
+
 function showCam() {
   if (isInCam) return;
   isInCam = true;
@@ -540,6 +551,7 @@ function showCam() {
     const c = $('cam');
     c.style.display = 'flex';
     c.classList.remove('screen-fade'); void c.offsetWidth; c.classList.add('screen-fade');
+    acquireWakeLock();
   }, 7000);
 }
 
@@ -743,6 +755,7 @@ function waitForIce(pc) {
 
 function cleanup() {
   clearTimeout(reconnectTimer);
+  releaseWakeLock();
   if (viewPc) { viewPc.close(); viewPc = null; }
   stopPtt();
 }
