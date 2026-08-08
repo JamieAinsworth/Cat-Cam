@@ -867,7 +867,7 @@ async function startPtt() {
   await waitForIce(pc);
 
   try {
-    const res = await fetch(authUrl(`${cfg.host}/${cfg.path}/whip`), {
+    const res = await fetch(authUrl(`${cfg.host}/talk/whip`), {
       method: 'POST',
       headers: buildHeaders(),
       body: pc.localDescription.sdp,
