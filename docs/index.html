@@ -32,6 +32,25 @@
       flex-direction: column;
     }
 
+    /* ── Animations ── */
+    @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+    .screen-fade { animation: fadeIn 0.25s ease both; }
+    .slide-up    { animation: slideUp 0.28s cubic-bezier(0.22,1,0.36,1) both; }
+
+    /* ripple host */
+    .btn-primary, .btn-text { position: relative; overflow: hidden; }
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      transform: scale(0);
+      background: rgba(255,255,255,0.25);
+      animation: ripple-anim 0.5s linear;
+      pointer-events: none;
+    }
+    @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
     /* ── Setup screen ── */
     #setup {
       display: flex;
@@ -374,6 +393,19 @@
 <script>
 const STORAGE_KEY = 'catcam_v1';
 
+// ── Ripple effect ────────────────────────────────────────────────────────────
+document.querySelectorAll('.btn-primary, .btn-text').forEach(btn => {
+  btn.addEventListener('pointerdown', e => {
+    const r = document.createElement('span');
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    r.className = 'ripple';
+    r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+    btn.appendChild(r);
+    r.addEventListener('animationend', () => r.remove());
+  });
+});
+
 // ── Config ──────────────────────────────────────────────────────────────────
 
 function loadCfg() {
@@ -401,7 +433,9 @@ function showSetup(errorMsg = '') {
   isInCam = false;
   $('loading').style.display = 'none';
   $('cam').style.display = 'none';
-  $('setup').style.display = 'flex';
+  const s = $('setup');
+  s.style.display = 'flex';
+  s.classList.remove('screen-fade'); void s.offsetWidth; s.classList.add('screen-fade');
   const errEl = $('setup-error');
   if (errEl) { errEl.textContent = errorMsg; errEl.style.display = errorMsg ? 'block' : 'none'; }
   updateSetupView();
@@ -410,7 +444,9 @@ function showSetup(errorMsg = '') {
 function showLoading() {
   $('setup').style.display = 'none';
   $('cam').style.display = 'none';
-  $('loading').style.display = 'flex';
+  const l = $('loading');
+  l.style.display = 'flex';
+  l.classList.remove('screen-fade'); void l.offsetWidth; l.classList.add('screen-fade');
   $('loading-status').textContent = 'Connecting…';
 }
 
@@ -419,7 +455,9 @@ function showCam() {
   isInCam = true;
   $('loading').style.display = 'none';
   $('setup').style.display = 'none';
-  $('cam').style.display = 'flex';
+  const c = $('cam');
+  c.style.display = 'flex';
+  c.classList.remove('screen-fade'); void c.offsetWidth; c.classList.add('screen-fade');
 }
 
 function updateSetupView() {
@@ -448,13 +486,17 @@ $('quick-connect-btn').addEventListener('click', () => {
 
 $('edit-creds-btn').addEventListener('click', () => {
   $('quick-connect').style.display = 'none';
-  $('full-form').style.display = 'flex';
+  const ff = $('full-form');
+  ff.style.display = 'flex';
+  ff.classList.remove('slide-up'); void ff.offsetWidth; ff.classList.add('slide-up');
   $('cancel-edit-btn').style.display = 'block';
 });
 
 $('cancel-edit-btn').addEventListener('click', () => {
   $('full-form').style.display = 'none';
-  $('quick-connect').style.display = 'flex';
+  const qc = $('quick-connect');
+  qc.style.display = 'flex';
+  qc.classList.remove('slide-up'); void qc.offsetWidth; qc.classList.add('slide-up');
 });
 
 $('connect-btn').addEventListener('click', () => {
