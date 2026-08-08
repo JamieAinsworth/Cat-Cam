@@ -157,6 +157,58 @@
     }
     #ptt-btn.talking   { background: var(--danger); border-color: var(--danger); }
     #ptt-btn:disabled  { opacity: 0.35; }
+
+    /* ── Camera settings panel ── */
+    #cam-settings {
+      position: fixed; inset: 0; z-index: 50;
+      display: none; align-items: flex-end;
+    }
+    #cam-settings.open { display: flex; }
+    #cam-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.55);
+    }
+    #cam-sheet {
+      position: relative; width: 100%;
+      background: var(--surface);
+      border-radius: 16px 16px 0 0;
+      padding: 20px 20px max(20px, env(safe-area-inset-bottom));
+      max-height: 78vh; overflow-y: auto;
+    }
+    .sheet-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 20px;
+    }
+    .sheet-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .close-btn { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; }
+    .ctrl-group { margin-bottom: 18px; }
+    .ctrl-group-label {
+      font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px;
+    }
+    .ctrl-row {
+      display: flex; align-items: center;
+      gap: 10px; margin-bottom: 10px;
+    }
+    .ctrl-row.disabled { opacity: 0.35; pointer-events: none; }
+    .ctrl-label { font-size: 0.82rem; flex: 0 0 130px; }
+    .ctrl-slider { flex: 1; accent-color: var(--accent); }
+    .ctrl-value { font-size: 0.78rem; color: var(--muted); min-width: 38px; text-align: right; }
+    .ctrl-toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .ctrl-toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--border); border-radius: 24px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .ctrl-toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle-track::after {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; background: #fff;
+      border-radius: 50%; top: 3px; left: 3px;
+      transition: transform 0.2s;
+    }
+    .ctrl-toggle input:checked + .toggle-track::after { transform: translateX(20px); }
   </style>
 </head>
 <body>
@@ -195,10 +247,21 @@
   <div id="controls">
     <button class="icon-btn muted" id="mute-btn">🔇</button>
       <button id="ptt-btn">Hold to Talk</button>
-    <button class="icon-btn" id="settings-btn">⚙︎</button>
-  </div>
+      <button class="icon-btn" id="cam-settings-btn">📷</button>
+      <button class="icon-btn" id="settings-btn">⚙︎</button>
+    </div>
 </div>
 
+<!-- Camera settings panel -->
+<div id="cam-settings">
+  <div id="cam-backdrop"></div>
+  <div id="cam-sheet">
+    <div class="sheet-header">
+      <h2>Camera Settings</h2>
+      <button class="close-btn" id="cam-close">✕</button>
+    </div>
+    <div id="cam-controls-body"><p style="color:var(--muted)">Loading…</p></div>
+  </div>
 <script>
 const STORAGE_KEY = 'catcam_v1';
 
@@ -475,6 +538,110 @@ function getTouchDist(e) {
     e.touches[0].clientX - e.touches[1].clientX,
     e.touches[0].clientY - e.touches[1].clientY
   );
+}
+
+// ── Camera settings panel ───────────────────────────────────────────────────
+
+const camPanel = $('cam-settings');
+let camDebounce = null;
+
+function camApiBase() {
+  return cfg ? cfg.host.replace(/:(\d+)$/, ':8081') : '';
+}
+
+$('cam-settings-btn').addEventListener('click', () => {
+  camPanel.classList.add('open');
+  loadCamControls();
+});
+$('cam-close').addEventListener('click',    () => camPanel.classList.remove('open'));
+$('cam-backdrop').addEventListener('click', () => camPanel.classList.remove('open'));
+
+async function loadCamControls() {
+  const body = $('cam-controls-body');
+  try {
+    const res = await fetch(`${camApiBase()}/camera`);
+    if (!res.ok) throw new Error(res.status);
+    const { controls, values } = await res.json();
+    renderCamControls(controls, values, body);
+  } catch {
+    body.innerHTML = '<p style="color:var(--danger);font-size:0.9rem">Could not reach camera API.<br>Check the API service is running on port 8081.</p>';
+  }
+}
+
+function renderCamControls(controls, values, container) {
+  const groups = [
+    { label: 'Image',         keys: ['brightness', 'contrast', 'saturation', 'sharpness'] },
+    { label: 'Exposure',      keys: ['auto_exposure', 'gain', 'exposure_time_absolute'] },
+    { label: 'White Balance', keys: ['white_balance_automatic', 'white_balance_temperature'] },
+    { label: 'Optics',        keys: ['zoom_absolute', 'backlight_compensation'] },
+  ];
+
+  container.innerHTML = '';
+
+  groups.forEach(group => {
+    const grp = document.createElement('div');
+    grp.className = 'ctrl-group';
+    grp.innerHTML = `<div class="ctrl-group-label">${group.label}</div>`;
+
+    group.keys.forEach(key => {
+      const c = controls[key];
+      if (!c) return;
+      const val = values[key] ?? c.default;
+      const row = document.createElement('div');
+      row.className = 'ctrl-row';
+      row.dataset.key = key;
+
+      // Disable dependent controls based on current auto state
+      if (key === 'exposure_time_absolute' && (values['auto_exposure'] ?? 3) === 3) row.classList.add('disabled');
+      if (key === 'white_balance_temperature' && (values['white_balance_automatic'] ?? 1) === 1) row.classList.add('disabled');
+
+      if (key === 'auto_exposure') {
+        row.innerHTML = `<span class="ctrl-label">${c.label}</span>
+          <label class="ctrl-toggle"><input type="checkbox" ${val === 3 ? 'checked' : ''}><span class="toggle-track"></span></label>`;
+        row.querySelector('input').addEventListener('change', e => {
+          const v = e.target.checked ? 3 : 1;
+          setCamControl('auto_exposure', v);
+          const expRow = container.querySelector('[data-key="exposure_time_absolute"]');
+          if (expRow) expRow.classList.toggle('disabled', e.target.checked);
+        });
+      } else if (c.min === 0 && c.max === 1) {
+        row.innerHTML = `<span class="ctrl-label">${c.label}</span>
+          <label class="ctrl-toggle"><input type="checkbox" ${val ? 'checked' : ''}><span class="toggle-track"></span></label>`;
+        row.querySelector('input').addEventListener('change', e => {
+          setCamControl(key, e.target.checked ? 1 : 0);
+          if (key === 'white_balance_automatic') {
+            const wbRow = container.querySelector('[data-key="white_balance_temperature"]');
+            if (wbRow) wbRow.classList.toggle('disabled', e.target.checked);
+          }
+        });
+      } else {
+        row.innerHTML = `<span class="ctrl-label">${c.label}</span>
+          <input type="range" class="ctrl-slider" min="${c.min}" max="${c.max}" value="${val}">
+          <span class="ctrl-value">${val}</span>`;
+        const slider = row.querySelector('input');
+        const valEl  = row.querySelector('.ctrl-value');
+        slider.addEventListener('input', () => {
+          valEl.textContent = slider.value;
+          clearTimeout(camDebounce);
+          camDebounce = setTimeout(() => setCamControl(key, +slider.value), 300);
+        });
+      }
+
+      grp.appendChild(row);
+    });
+
+    container.appendChild(grp);
+  });
+}
+
+async function setCamControl(key, value) {
+  try {
+    await fetch(`${camApiBase()}/camera`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: value }),
+    });
+  } catch { /* ignore */ }
 }
 
 // ── Service Worker ──────────────────────────────────────────────────────────
