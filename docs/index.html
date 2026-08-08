@@ -324,7 +324,6 @@
 
   <!-- Full credentials form -->
   <div id="full-form" style="display:flex;flex-direction:column;gap:12px">
-    <input id="cfg-host" type="url" style="display:none">
     <div class="field-group">
       <span class="field-label">Username</span>
       <input id="cfg-user" type="text" autocomplete="username">
@@ -436,8 +435,6 @@ function updateSetupView() {
 // ── Setup ───────────────────────────────────────────────────────────────────
 
 // Populate full form from saved config
-if (saved.host) $('cfg-host').value = saved.host;
-if (saved.path) $('cfg-path').value = saved.path;
 if (saved.user) $('cfg-user').value = saved.user;
 if (saved.pass) $('cfg-pass').value = saved.pass;
 
@@ -461,8 +458,7 @@ $('cancel-edit-btn').addEventListener('click', () => {
 });
 
 $('connect-btn').addEventListener('click', () => {
-  const host = $('cfg-host').value.replace(/\/+$/, '');
-  if (!host) return;
+  const host = 'https://rhyho-pi.tailcceb24.ts.net:8889';
   cfg = {
     host,
     path: $('cfg-path').value.trim() || 'cam',
