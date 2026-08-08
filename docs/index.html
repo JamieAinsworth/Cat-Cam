@@ -317,6 +317,28 @@
     #ptt-btn.talking   { background: rgba(34, 197, 94, 0.25); color: #22c55e; }
     #ptt-btn:disabled  { opacity: 0.35; }
 
+    #reconnect-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      z-index: 40;
+    }
+    #reconnect-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #reconnect-status { font-size: 0.95rem; color: var(--muted); }
+
     /* ── Camera settings panel ── */
     #cam-settings {
       position: fixed; inset: 0; z-index: 50;
@@ -433,6 +455,11 @@
     <div id="status-badge" class="s-connecting">Connecting…</div>
     <dl id="stats-overlay"></dl>
     <button id="conn-btn" title="Disconnect">✕</button>
+    <!-- Full-screen reconnect overlay -->
+    <div id="reconnect-overlay">
+      <div class="spinner"></div>
+      <p id="reconnect-status">Reconnecting…</p>
+    </div>
   </div>
   <div id="controls">
     <!-- Mute button: no-sound icon by apien - https://www.flaticon.com/free-icons/no-sound -->
@@ -553,7 +580,7 @@ function showCam() {
     c.style.display = 'flex';
     c.classList.remove('screen-fade'); void c.offsetWidth; c.classList.add('screen-fade');
     acquireWakeLock();
-  }, 2000);
+  }, 4000);
 }
 
 function updateSetupView() {
@@ -694,9 +721,9 @@ async function connect() {
   pc.onconnectionstatechange = () => {
     if (pc !== viewPc) return;
     const s = pc.connectionState;
-    if (s === 'connected')    { showCam(); setStatus('s-live', '● Live'); }
-    if (s === 'disconnected') { setStatus('s-connecting', 'Reconnecting…'); scheduleReconnect(); }
-    if (s === 'failed')       { setStatus('s-error', 'Connection failed'); scheduleReconnect(); }
+    if (s === 'connected')    { showCam(); setStatus('s-live', '● Live'); $('reconnect-overlay').classList.remove('visible'); }
+    if (s === 'disconnected') { setStatus('s-connecting', 'Reconnecting…'); $('reconnect-overlay').classList.add('visible'); $('reconnect-status').textContent = 'Reconnecting…'; scheduleReconnect(); }
+    if (s === 'failed')       { setStatus('s-error', 'Connection failed'); $('reconnect-overlay').classList.add('visible'); $('reconnect-status').textContent = 'Connection lost…'; scheduleReconnect(); }
   };
 
   pc.addTransceiver('video', { direction: 'recvonly' });
