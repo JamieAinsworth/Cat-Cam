@@ -498,6 +498,7 @@ let pttPc = null;
 let pttStream = null;
 let zoom = 1;
 let reconnectTimer = null;
+let showCamTimer = null;
 let isInCam = false;
 
 // ── Screen transitions ───────────────────────────────────────────────────────
@@ -533,7 +534,7 @@ function showCam() {
   if (isInCam) return;
   isInCam = true;
   $('loading-status').textContent = 'Loading feed…';
-  setTimeout(() => {
+  showCamTimer = setTimeout(() => {
     $('loading').style.display = 'none';
     $('setup').style.display = 'none';
     const c = $('cam');
@@ -595,6 +596,9 @@ $('connect-btn').addEventListener('click', () => {
 });
 
 $('cancel-connect-btn').addEventListener('click', () => {
+  clearTimeout(showCamTimer);
+  showCamTimer = null;
+  isInCam = false;
   cleanup();
   showSetup();
 });
