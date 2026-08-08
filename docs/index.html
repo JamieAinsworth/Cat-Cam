@@ -339,6 +339,35 @@
     }
     #reconnect-status { font-size: 0.95rem; color: var(--muted); }
 
+    /* ── Disconnect confirm popup ── */
+    #disconnect-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      display: none; align-items: center; justify-content: center;
+      padding: 24px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    #disconnect-overlay.open { display: flex; }
+    #disconnect-sheet {
+      width: 100%; max-width: 320px;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 24px;
+      text-align: center;
+      animation: popIn 0.25s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    #disconnect-sheet h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    #disconnect-sheet p  { font-size: 0.85rem; color: var(--muted); margin-bottom: 20px; }
+    .disconnect-btns { display: flex; gap: 12px; }
+    .disconnect-btns button { flex: 1; padding: 12px; border-radius: 50px; border: none;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+    #disconnect-confirm { background: rgba(220,38,38,0.8); color: #fff; }
+    #disconnect-cancel  { background: rgba(255,255,255,0.12); color: #fff; }
+
     /* ── Camera settings panel ── */
     #cam-settings {
       position: fixed; inset: 0; z-index: 50;
@@ -471,6 +500,18 @@
   </div>
 </div>
 
+<!-- Disconnect confirm -->
+<div id="disconnect-overlay">
+  <div id="disconnect-sheet">
+    <h2>Disconnect?</h2>
+    <p>This will end the live feed and return to the connect screen.</p>
+    <div class="disconnect-btns">
+      <button id="disconnect-cancel">Stay</button>
+      <button id="disconnect-confirm">Disconnect</button>
+    </div>
+  </div>
+</div>
+
 <!-- Camera settings panel -->
 <div id="cam-settings">
   <div id="cam-backdrop"></div>
@@ -580,6 +621,7 @@ function showCam() {
     c.style.display = 'flex';
     c.classList.remove('screen-fade'); void c.offsetWidth; c.classList.add('screen-fade');
     acquireWakeLock();
+    pushCamHistory();
   }, 4000);
 }
 
@@ -1006,20 +1048,22 @@ function renderCamControls(controls, values, container) {
         });
       } else {
         row.innerHTML = `<span class="ctrl-label">${c.label}</span>
-          <input type="range" class="ctrl-slider" min="${c.min}" max="${c.max}" value="${val}">
-          <span class="ctrl-value">${val}</span>
+          <input type="range" class="ctrl-slider" min="0" max="100" step="5" value="${toPercent(val, c.min, c.max)}">
+          <span class="ctrl-value">${toPercent(val, c.min, c.max)}%</span>
           <button class="reset-btn" title="Reset to default">↺</button>`;
         const slider  = row.querySelector('input[type=range]');
         const valEl   = row.querySelector('.ctrl-value');
         const resetEl = row.querySelector('.reset-btn');
         slider.addEventListener('input', () => {
-          valEl.textContent = slider.value;
+          valEl.textContent = slider.value + '%';
+          navigator.vibrate && navigator.vibrate(8);
           clearTimeout(camDebounce);
-          camDebounce = setTimeout(() => setCamControl(key, +slider.value), 300);
+          camDebounce = setTimeout(() => setCamControl(key, fromPercent(+slider.value, c.min, c.max)), 300);
         });
         resetEl.addEventListener('click', () => {
-          slider.value = c.default;
-          valEl.textContent = c.default;
+          const pct = toPercent(c.default, c.min, c.max);
+          slider.value = pct;
+          valEl.textContent = pct + '%';
           setCamControl(key, c.default);
         });
       }
@@ -1040,6 +1084,64 @@ async function setCamControl(key, value) {
     });
   } catch { /* ignore */ }
 }
+
+// ── Slider percent helpers ───────────────────────────────────────────────────
+function toPercent(val, min, max) { return Math.round((val - min) / (max - min) * 100); }
+function fromPercent(pct, min, max) { return Math.round(min + (pct / 100) * (max - min)); }
+
+// ── Haptic feedback ──────────────────────────────────────────────────────────
+function haptic(ms = 10) { navigator.vibrate && navigator.vibrate(ms); }
+$('mute-btn').addEventListener('pointerdown', () => haptic());
+$('ptt-btn').addEventListener('pointerdown', () => haptic());
+
+// ── Disconnect confirm popup ─────────────────────────────────────────────────
+const discOverlay = $('disconnect-overlay');
+function showDisconnectPrompt() {
+  discOverlay.classList.add('open');
+}
+$('disconnect-cancel').addEventListener('click', () => {
+  discOverlay.classList.remove('open');
+  history.pushState({ cam: true }, ''); // re-arm back button
+});
+$('disconnect-confirm').addEventListener('click', () => {
+  discOverlay.classList.remove('open');
+  cleanup();
+  $('video').muted = true;
+  const muteImg = $('mute-btn').querySelector('img');
+  if (muteImg) muteImg.src = 'icons/no-sound.png';
+  $('mute-btn').classList.add('muted');
+  showSetup();
+});
+
+// ── Back button (Android) ────────────────────────────────────────────────────
+function pushCamHistory() { history.pushState({ cam: true }, ''); }
+window.addEventListener('popstate', () => {
+  if (discOverlay.classList.contains('open')) {
+    discOverlay.classList.remove('open');
+    pushCamHistory();
+    return;
+  }
+  const camPanel = $('cam-settings');
+  if (camPanel.classList.contains('open')) {
+    camPanel.classList.remove('open');
+    pushCamHistory();
+    return;
+  }
+  if (isInCam) {
+    showDisconnectPrompt();
+    pushCamHistory();
+  }
+});
+
+// Push history state when entering cam so first back press is caught
+const _origShowCam = showCam;
+
+// ── Immersive mode (hide Android nav bar) ────────────────────────────────────
+function requestImmersive() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+}
+document.addEventListener('click', requestImmersive, { once: true });
 
 // ── Service Worker ──────────────────────────────────────────────────────────
 
