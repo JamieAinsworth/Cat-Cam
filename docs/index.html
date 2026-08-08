@@ -1141,13 +1141,6 @@ window.addEventListener('popstate', () => {
 // Push history state when entering cam so first back press is caught
 const _origShowCam = showCam;
 
-// ── Immersive mode (hide Android nav bar) ────────────────────────────────────
-function requestImmersive() {
-  const el = document.documentElement;
-  if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
-}
-document.addEventListener('click', requestImmersive, { once: true });
-
 // ── Service Worker ──────────────────────────────────────────────────────────
 
 if ('serviceWorker' in navigator) {
