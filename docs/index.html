@@ -174,10 +174,33 @@
       background: rgba(255, 255, 255, 0.12);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
+      cursor: pointer;
+      user-select: none;
     }
     .s-live       { color: #4ade80; }
     .s-connecting { color: #facc15; }
     .s-error      { color: #f87171; }
+
+    #stats-overlay {
+      display: none;
+      position: absolute;
+      top: 44px;
+      left: 12px;
+      background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.75rem;
+      line-height: 1.8;
+      color: var(--text);
+      min-width: 180px;
+      z-index: 90;
+      animation: fadeIn 0.15s ease both;
+    }
+    #stats-overlay.open { display: block; }
+    #stats-overlay dt { color: var(--muted); float: left; margin-right: 6px; }
+    #stats-overlay dd { margin: 0; font-weight: 600; text-align: right; }
 
     #conn-btn {
       position: absolute;
@@ -368,6 +391,7 @@
   <div id="video-wrap">
     <video id="video" autoplay playsinline muted></video>
     <div id="status-badge" class="s-connecting">Connecting…</div>
+    <dl id="stats-overlay"></dl>
     <button id="conn-btn" title="Disconnect">✕</button>
   </div>
   <div id="controls">
@@ -524,6 +548,42 @@ $('conn-btn').addEventListener('click', () => {
   if (muteImg) muteImg.src = 'icons/no-sound.png';
   $('mute-btn').classList.add('muted');
   showSetup();
+});
+
+// ── Connection stats overlay ─────────────────────────────────────────────────
+let statsInterval = null;
+
+async function refreshStats() {
+  if (!viewPc) return;
+  const reports = await viewPc.getStats();
+  let video = {}, audio = {}, rtt = null;
+  reports.forEach(r => {
+    if (r.type === 'inbound-rtp' && r.kind === 'video') video = r;
+    if (r.type === 'inbound-rtp' && r.kind === 'audio') audio = r;
+    if (r.type === 'candidate-pair' && r.state === 'succeeded') rtt = r.currentRoundTripTime;
+  });
+  const fmt = n => n == null ? '—' : n;
+  $('stats-overlay').innerHTML = `
+    <dt>Resolution</dt><dd>${video.frameWidth ? video.frameWidth + '×' + video.frameHeight : '—'}</dd>
+    <dt>Framerate</dt><dd>${video.framesPerSecond ? Math.round(video.framesPerSecond) + ' fps' : '—'}</dd>
+    <dt>Video loss</dt><dd>${fmt(video.packetsLost)} pkts</dd>
+    <dt>Jitter</dt><dd>${audio.jitter != null ? (audio.jitter * 1000).toFixed(1) + ' ms' : '—'}</dd>
+    <dt>Round-trip</dt><dd>${rtt != null ? (rtt * 1000).toFixed(0) + ' ms' : '—'}</dd>
+  `;
+}
+
+$('status-badge').addEventListener('click', () => {
+  const overlay = $('stats-overlay');
+  const open = overlay.classList.toggle('open');
+  if (open) { refreshStats(); statsInterval = setInterval(refreshStats, 1500); }
+  else clearInterval(statsInterval);
+});
+
+$('video-wrap').addEventListener('click', e => {
+  if (!$('status-badge').contains(e.target) && !$('stats-overlay').contains(e.target)) {
+    $('stats-overlay').classList.remove('open');
+    clearInterval(statsInterval);
+  }
 });
 
 // ── WHEP viewer ─────────────────────────────────────────────────────────────
