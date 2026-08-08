@@ -1,0 +1,8 @@
+{
+  "appId": "com.jamieainsworth.catcam",
+  "appName": "Vivienne Checker",
+  "webDir": "docs",
+  "server": {
+    "androidScheme": "https"
+  }
+}

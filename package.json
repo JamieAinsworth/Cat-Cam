@@ -1,0 +1,29 @@
+{
+  "name": "cat-cam",
+  "version": "1.0.0",
+  "description": "A two-way audio/video monitor for keeping an eye (and ear) on the cat, viewable\r from your phone. Live video, hear the flat, and talk to the cat — with secure\r remote access and room to add motion alerts later.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JamieAinsworth/Cat-Cam.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/JamieAinsworth/Cat-Cam/issues"
+  },
+  "homepage": "https://github.com/JamieAinsworth/Cat-Cam#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  }
+}
