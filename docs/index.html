@@ -314,7 +314,8 @@
     }
     #ptt-btn:active { background: rgba(255, 255, 255, 0.28); transform: scale(0.9); }
     #ptt-btn.pop    { animation: btn-pop 0.3s cubic-bezier(0.22,1,0.36,1) both; }
-    #ptt-btn.talking   { background: rgba(34, 197, 94, 0.25); color: #22c55e; }
+    #ptt-btn.talking     { background: rgba(34, 197, 94, 0.25); color: #22c55e; }
+    .icon-btn.sound-active { background: rgba(34, 197, 94, 0.25); }
     #ptt-btn:disabled  { opacity: 0.35; }
 
     #reconnect-overlay {
@@ -689,14 +690,7 @@ $('cancel-connect-btn').addEventListener('click', () => {
   showSetup();
 });
 
-$('conn-btn').addEventListener('click', () => {
-  cleanup();
-  $('video').muted = true;
-  const muteImg = $('mute-btn').querySelector('img');
-  if (muteImg) muteImg.src = 'icons/no-sound.png';
-  $('mute-btn').classList.add('muted');
-  showSetup();
-});
+$('conn-btn').addEventListener('click', () => showDisconnectPrompt());
 
 // ── Connection stats overlay ─────────────────────────────────────────────────
 let statsInterval = null;
@@ -842,6 +836,7 @@ $('mute-btn').addEventListener('click', () => {
   v.muted = !v.muted;
   const img = $('mute-btn').querySelector('img');
   if (img) img.src = v.muted ? 'icons/no-sound.png' : 'icons/sound-active.png';
+  $('mute-btn').classList.toggle('sound-active', !v.muted);
   $('mute-btn').classList.toggle('muted', v.muted);
   if (!v.muted) {
     v.play().catch(() => {});
