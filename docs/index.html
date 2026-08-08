@@ -53,6 +53,12 @@
     }
     @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
 
+    @keyframes slideOutLeft {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(-60px); }
+    }
+    .slide-out { animation: slideOutLeft 0.32s cubic-bezier(0.4,0,1,1) both; }
+
     /* ── Setup screen ── */
     #setup {
       display: flex;
@@ -509,12 +515,18 @@ function showSetup(errorMsg = '') {
 }
 
 function showLoading() {
-  $('setup').style.display = 'none';
+  const setup = $('setup');
   $('cam').style.display = 'none';
-  const l = $('loading');
-  l.style.display = 'flex';
-  l.classList.remove('screen-fade'); void l.offsetWidth; l.classList.add('screen-fade');
   $('loading-status').textContent = 'Connecting…';
+  // slide setup out, then swap screens
+  setup.classList.remove('slide-out'); void setup.offsetWidth; setup.classList.add('slide-out');
+  setTimeout(() => {
+    setup.style.display = 'none';
+    setup.classList.remove('slide-out');
+    const l = $('loading');
+    l.style.display = 'flex';
+    l.classList.remove('screen-fade'); void l.offsetWidth; l.classList.add('screen-fade');
+  }, 300);
 }
 
 function showCam() {
