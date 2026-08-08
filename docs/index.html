@@ -166,8 +166,6 @@
     }
     #conn-btn:active { background: rgba(255, 255, 255, 0.18); }
 
-    #mute-btn.muted { color: #f87171; border-color: #f87171; }
-
     /* ── Controls bar ── */
     #controls {
       position: fixed;
@@ -195,6 +193,13 @@
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
+      padding: 0;
+    }
+    .icon-btn img {
+      width: 24px;
+      height: 24px;
+      display: block;
+      pointer-events: none;
     }
     .icon-btn:active { background: rgba(255, 255, 255, 0.18); }
 
@@ -216,6 +221,13 @@
       user-select: none;
       -webkit-user-select: none;
       transition: all 0.2s;
+      padding: 0;
+    }
+    #ptt-btn img {
+      width: 24px;
+      height: 24px;
+      display: block;
+      pointer-events: none;
     }
     #ptt-btn.talking   { background: rgba(34, 197, 94, 0.25); color: #22c55e; }
     #ptt-btn:disabled  { opacity: 0.35; }
