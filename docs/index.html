@@ -145,6 +145,24 @@
     .s-connecting { color: #facc15; }
     .s-error      { color: #f87171; }
 
+    #conn-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 6px 12px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #conn-btn:active { background: rgba(0,0,0,0.7); }
+
     #mute-btn.muted { color: #f87171; border-color: #f87171; }
 
     /* ── Controls bar ── */
@@ -299,12 +317,12 @@
   <div id="video-wrap">
     <video id="video" autoplay playsinline muted></video>
     <div id="status-badge" class="s-connecting">Connecting…</div>
+    <button id="conn-btn">⚙ Settings</button>
   </div>
   <div id="controls">
     <button class="icon-btn muted" id="mute-btn">🔇</button>
       <button id="ptt-btn">Hold to Talk</button>
       <button class="icon-btn" id="cam-settings-btn">📷</button>
-      <button class="icon-btn" id="settings-btn">⚙︎</button>
     </div>
 </div>
 
@@ -426,7 +444,7 @@ $('cancel-connect-btn').addEventListener('click', () => {
   showSetup();
 });
 
-$('settings-btn').addEventListener('click', () => {
+$('conn-btn').addEventListener('click', () => {
   cleanup();
   $('video').muted = true;
   $('mute-btn').textContent = '🔇';
