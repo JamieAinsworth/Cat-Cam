@@ -458,10 +458,9 @@ $('cancel-edit-btn').addEventListener('click', () => {
 });
 
 $('connect-btn').addEventListener('click', () => {
-  const host = 'https://rhyho-pi.tailcceb24.ts.net:8889';
   cfg = {
-    host,
-    path: $('cfg-path').value.trim() || 'cam',
+    host: 'https://rhyho-pi.tailcceb24.ts.net:8889',
+    path: 'cam',
     user: $('cfg-user').value.trim(),
     pass: $('cfg-pass').value,
   };
