@@ -622,6 +622,10 @@ function showCam() {
     c.classList.remove('screen-fade'); void c.offsetWidth; c.classList.add('screen-fade');
     acquireWakeLock();
     pushCamHistory();
+    // pre-acquire mic so first press doesn't disrupt the stream
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(s => { pttStream = s; })
+      .catch(() => {});
   }, 4000);
 }
 
