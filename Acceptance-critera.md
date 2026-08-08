@@ -110,10 +110,10 @@ Legend: 🟢 MVP (must-have for v1) · 🔵 Later (post-MVP)
   *when* I attempt password-based SSH login,
   *then* it is rejected (keys only), and root login is disabled.
 
-- [ ] **AC6.3 — Firewall active**
+- [x] **AC6.3 — Firewall active**
   *Given* `ufw` is enabled,
   *when* I check allowed ports,
-  *then* only SSH and the Tailscale interface are permitted inbound.
+  *then* only SSH, DNS (Pi-hole), and the Tailscale interface are permitted inbound.
 
 - [x] **AC6.4 — Stream requires auth**
   *Given* MediaMTX auth is configured,
