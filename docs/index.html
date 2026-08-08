@@ -153,11 +153,14 @@
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 6px 12px;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: var(--muted);
-      font-size: 0.75rem;
-      font-weight: 500;
+      font-size: 1.2rem;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -326,7 +329,7 @@
   <div id="video-wrap">
     <video id="video" autoplay playsinline muted></video>
     <div id="status-badge" class="s-connecting">Connecting…</div>
-    <button id="conn-btn">⚙ Settings</button>
+    <button id="conn-btn" title="Disconnect">✕</button>
   </div>
   <div id="controls">
     <button class="icon-btn muted" id="mute-btn">🔇</button>
