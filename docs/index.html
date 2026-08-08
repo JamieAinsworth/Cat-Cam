@@ -76,6 +76,39 @@
     }
     .btn-primary:active { opacity: 0.8; }
 
+    .btn-text {
+      background: none; border: none; color: var(--muted);
+      font-size: 0.9rem; cursor: pointer; padding: 8px; text-align: center;
+    }
+    .btn-text:active { color: var(--text); }
+
+    #setup-error {
+      display: none;
+      color: var(--danger);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 2px 0;
+    }
+
+    /* ── Loading screen ── */
+    #loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      height: 100%;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-status { font-size: 0.95rem; color: var(--muted); }
+
     /* ── Camera screen ── */
     #cam { display: none; flex-direction: column; height: 100%; }
 
@@ -221,26 +254,44 @@
 <!-- ── Setup ──────────────────────────────────────────────────────────────── -->
 <div id="setup">
   <p class="setup-title">🐱 Cat Cam</p>
-  <p class="setup-sub">Connect to your Raspberry Pi stream</p>
 
-  <div class="field-group">
-    <span class="field-label">Server URL</span>
-    <input id="cfg-host" type="url" placeholder="https://rhyho-pi.tailcceb24.ts.net:8889" inputmode="url">
-  </div>
-  <div class="field-group">
-    <span class="field-label">Stream path</span>
-    <input id="cfg-path" type="text" placeholder="cam" value="cam">
-  </div>
-  <div class="field-group">
-    <span class="field-label">Username</span>
-    <input id="cfg-user" type="text" autocomplete="username">
-  </div>
-  <div class="field-group">
-    <span class="field-label">Password</span>
-    <input id="cfg-pass" type="password" autocomplete="current-password">
+  <!-- Shown when credentials already saved -->
+  <div id="quick-connect" style="display:none;flex-direction:column;gap:12px;align-items:center">
+    <p id="quick-host" class="setup-sub"></p>
+    <p id="setup-error"></p>
+    <button class="btn-primary" id="quick-connect-btn" style="width:100%">Connect</button>
+    <button class="btn-text" id="edit-creds-btn">Edit credentials</button>
   </div>
 
-  <button class="btn-primary" id="connect-btn">Connect</button>
+  <!-- Full credentials form -->
+  <div id="full-form" style="display:flex;flex-direction:column;gap:12px">
+    <p class="setup-sub">Connect to your Raspberry Pi stream</p>
+    <div class="field-group">
+      <span class="field-label">Server URL</span>
+      <input id="cfg-host" type="url" placeholder="https://rhyho-pi.tailcceb24.ts.net:8889" inputmode="url">
+    </div>
+    <div class="field-group">
+      <span class="field-label">Stream path</span>
+      <input id="cfg-path" type="text" placeholder="cam" value="cam">
+    </div>
+    <div class="field-group">
+      <span class="field-label">Username</span>
+      <input id="cfg-user" type="text" autocomplete="username">
+    </div>
+    <div class="field-group">
+      <span class="field-label">Password</span>
+      <input id="cfg-pass" type="password" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="connect-btn">Connect</button>
+    <button class="btn-text" id="cancel-edit-btn" style="display:none">Cancel</button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p id="loading-status">Connecting…</p>
+  <button class="btn-text" id="cancel-connect-btn">Cancel</button>
 </div>
 
 <!-- ── Camera ─────────────────────────────────────────────────────────────── -->
@@ -280,10 +331,6 @@ function saveCfg(c) { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); }
 
 const $ = id => document.getElementById(id);
 const saved = loadCfg();
-if (saved.host) $('cfg-host').value = saved.host;
-if (saved.path) $('cfg-path').value = saved.path;
-if (saved.user) $('cfg-user').value = saved.user;
-if (saved.pass) $('cfg-pass').value = saved.pass;
 
 // ── State ───────────────────────────────────────────────────────────────────
 
@@ -293,8 +340,71 @@ let pttPc = null;
 let pttStream = null;
 let zoom = 1;
 let reconnectTimer = null;
+let isInCam = false;
+
+// ── Screen transitions ───────────────────────────────────────────────────────
+
+function showSetup(errorMsg = '') {
+  isInCam = false;
+  $('loading').style.display = 'none';
+  $('cam').style.display = 'none';
+  $('setup').style.display = 'flex';
+  const errEl = $('setup-error');
+  if (errEl) { errEl.textContent = errorMsg; errEl.style.display = errorMsg ? 'block' : 'none'; }
+  updateSetupView();
+}
+
+function showLoading() {
+  $('setup').style.display = 'none';
+  $('cam').style.display = 'none';
+  $('loading').style.display = 'flex';
+  $('loading-status').textContent = 'Connecting…';
+}
+
+function showCam() {
+  if (isInCam) return;
+  isInCam = true;
+  $('loading').style.display = 'none';
+  $('setup').style.display = 'none';
+  $('cam').style.display = 'flex';
+}
+
+function updateSetupView() {
+  const hasCfg = !!(saved.host);
+  $('quick-connect').style.display = hasCfg ? 'flex' : 'none';
+  $('full-form').style.display     = hasCfg ? 'none' : 'flex';
+  if (hasCfg) {
+    const host = saved.host.replace(/^https?:\/\//, '').replace(/:\d+$/, '');
+    $('quick-host').textContent = host;
+  }
+}
 
 // ── Setup ───────────────────────────────────────────────────────────────────
+
+// Populate full form from saved config
+if (saved.host) $('cfg-host').value = saved.host;
+if (saved.path) $('cfg-path').value = saved.path;
+if (saved.user) $('cfg-user').value = saved.user;
+if (saved.pass) $('cfg-pass').value = saved.pass;
+
+updateSetupView();
+
+$('quick-connect-btn').addEventListener('click', () => {
+  cfg = { ...saved };
+  showLoading();
+  connect();
+});
+
+$('edit-creds-btn').addEventListener('click', () => {
+  $('quick-connect').style.display = 'none';
+  $('full-form').style.display = 'flex';
+  $('cancel-edit-btn').style.display = 'block';
+});
+
+$('cancel-edit-btn').addEventListener('click', () => {
+  $('full-form').style.display = 'none';
+  $('quick-connect').style.display = 'flex';
+});
 
 $('connect-btn').addEventListener('click', () => {
   const host = $('cfg-host').value.replace(/\/+$/, '');
@@ -305,19 +415,23 @@ $('connect-btn').addEventListener('click', () => {
     user: $('cfg-user').value.trim(),
     pass: $('cfg-pass').value,
   };
+  Object.assign(saved, cfg);
   saveCfg(cfg);
-  $('setup').style.display = 'none';
-  $('cam').style.display = 'flex';
+  showLoading();
   connect();
+});
+
+$('cancel-connect-btn').addEventListener('click', () => {
+  cleanup();
+  showSetup();
 });
 
 $('settings-btn').addEventListener('click', () => {
   cleanup();
-  $('cam').style.display = 'none';
-  $('setup').style.display = 'flex';
   $('video').muted = true;
   $('mute-btn').textContent = '🔇';
   $('mute-btn').classList.add('muted');
+  showSetup();
 });
 
 // ── WHEP viewer ─────────────────────────────────────────────────────────────
@@ -338,7 +452,8 @@ function authUrl(base) { return base; }
 
 async function connect() {
   clearTimeout(reconnectTimer);
-  setStatus('s-connecting', 'Connecting…');
+  if (!isInCam) $('loading-status').textContent = 'Connecting…';
+  else setStatus('s-connecting', 'Reconnecting…');
 
   if (viewPc) { viewPc.close(); viewPc = null; }
 
@@ -352,7 +467,7 @@ async function connect() {
   pc.onconnectionstatechange = () => {
     if (pc !== viewPc) return;
     const s = pc.connectionState;
-    if (s === 'connected')    setStatus('s-live', '● Live');
+    if (s === 'connected')    { showCam(); setStatus('s-live', '● Live'); }
     if (s === 'disconnected') { setStatus('s-connecting', 'Reconnecting…'); scheduleReconnect(); }
     if (s === 'failed')       { setStatus('s-error', 'Connection failed'); scheduleReconnect(); }
   };
@@ -372,13 +487,23 @@ async function connect() {
       body: pc.localDescription.sdp,
     });
   } catch {
-    setStatus('s-error', 'Cannot reach server');
+    if (!isInCam) $('loading-status').textContent = 'Cannot reach server — retrying…';
+    else setStatus('s-error', 'Cannot reach server');
     scheduleReconnect(8000);
     return;
   }
 
-  if (res.status === 401) { setStatus('s-error', '401 — check credentials'); return; }
-  if (!res.ok)            { setStatus('s-error', `Error ${res.status}`); scheduleReconnect(); return; }
+  if (res.status === 401) {
+    cleanup();
+    showSetup('Invalid credentials — check your username and password.');
+    return;
+  }
+  if (!res.ok) {
+    if (!isInCam) $('loading-status').textContent = `Error ${res.status} — retrying…`;
+    else setStatus('s-error', `Error ${res.status}`);
+    scheduleReconnect();
+    return;
+  }
 
   await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() });
 }
