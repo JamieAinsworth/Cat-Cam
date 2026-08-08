@@ -828,6 +828,7 @@ function cleanup() {
   releaseWakeLock();
   if (viewPc) { viewPc.close(); viewPc = null; }
   stopPtt();
+  teardownPttStream();
 }
 
 // ── Mute toggle ─────────────────────────────────────────────────────────────
@@ -882,11 +883,15 @@ async function startPtt() {
 
 function stopPtt() {
   if (pttPc) { pttPc.close(); pttPc = null; }
-  if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
+  // keep pttStream alive to avoid audio routing disruption on retoggle
   pttActive = false;
   $('ptt-btn').classList.remove('talking');
   const img = $('ptt-btn').querySelector('img');
   if (img) img.src = 'icons/mic-inactive.png';
+}
+
+function teardownPttStream() {
+  if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
 }
 
 let pttActive = false;
