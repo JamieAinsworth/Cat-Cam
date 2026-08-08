@@ -194,6 +194,11 @@
     .ctrl-label { font-size: 0.82rem; flex: 0 0 130px; }
     .ctrl-slider { flex: 1; accent-color: var(--accent); }
     .ctrl-value { font-size: 0.78rem; color: var(--muted); min-width: 38px; text-align: right; }
+    .reset-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: 1rem; cursor: pointer; padding: 0 2px; flex-shrink: 0;
+    }
+    .reset-btn:active { color: var(--text); }
     .ctrl-toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
     .ctrl-toggle input { opacity: 0; width: 0; height: 0; }
     .toggle-track {
@@ -573,7 +578,7 @@ function renderCamControls(controls, values, container) {
     { label: 'Image',         keys: ['brightness', 'contrast', 'saturation', 'sharpness'] },
     { label: 'Exposure',      keys: ['auto_exposure', 'gain', 'exposure_time_absolute'] },
     { label: 'White Balance', keys: ['white_balance_automatic', 'white_balance_temperature'] },
-    { label: 'Optics',        keys: ['zoom_absolute', 'backlight_compensation'] },
+    { label: 'Optics',        keys: ['backlight_compensation'] },
   ];
 
   container.innerHTML = '';
@@ -593,6 +598,7 @@ function renderCamControls(controls, values, container) {
 
       // Disable dependent controls based on current auto state
       if (key === 'exposure_time_absolute' && (values['auto_exposure'] ?? 3) === 3) row.classList.add('disabled');
+      if (key === 'gain'                   && (values['auto_exposure'] ?? 3) === 3) row.classList.add('disabled');
       if (key === 'white_balance_temperature' && (values['white_balance_automatic'] ?? 1) === 1) row.classList.add('disabled');
 
       if (key === 'auto_exposure') {
@@ -601,8 +607,10 @@ function renderCamControls(controls, values, container) {
         row.querySelector('input').addEventListener('change', e => {
           const v = e.target.checked ? 3 : 1;
           setCamControl('auto_exposure', v);
-          const expRow = container.querySelector('[data-key="exposure_time_absolute"]');
-          if (expRow) expRow.classList.toggle('disabled', e.target.checked);
+          const expRow  = container.querySelector('[data-key="exposure_time_absolute"]');
+          const gainRow = container.querySelector('[data-key="gain"]');
+          if (expRow)  expRow.classList.toggle('disabled', e.target.checked);
+          if (gainRow) gainRow.classList.toggle('disabled', e.target.checked);
         });
       } else if (c.min === 0 && c.max === 1) {
         row.innerHTML = `<span class="ctrl-label">${c.label}</span>
@@ -617,13 +625,20 @@ function renderCamControls(controls, values, container) {
       } else {
         row.innerHTML = `<span class="ctrl-label">${c.label}</span>
           <input type="range" class="ctrl-slider" min="${c.min}" max="${c.max}" value="${val}">
-          <span class="ctrl-value">${val}</span>`;
-        const slider = row.querySelector('input');
-        const valEl  = row.querySelector('.ctrl-value');
+          <span class="ctrl-value">${val}</span>
+          <button class="reset-btn" title="Reset to default">↺</button>`;
+        const slider  = row.querySelector('input[type=range]');
+        const valEl   = row.querySelector('.ctrl-value');
+        const resetEl = row.querySelector('.reset-btn');
         slider.addEventListener('input', () => {
           valEl.textContent = slider.value;
           clearTimeout(camDebounce);
           camDebounce = setTimeout(() => setCamControl(key, +slider.value), 300);
+        });
+        resetEl.addEventListener('click', () => {
+          slider.value = c.default;
+          valEl.textContent = c.default;
+          setCamControl(key, c.default);
         });
       }
 
