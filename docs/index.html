@@ -331,9 +331,12 @@
     <button id="conn-btn" title="Disconnect">✕</button>
   </div>
   <div id="controls">
-    <button class="icon-btn muted" id="mute-btn">🔇</button>
-    <button class="icon-btn" id="ptt-btn">🎤</button>
-    <button class="icon-btn" id="cam-settings-btn">📷</button>
+    <!-- Mute button: no-sound icon by apien - https://www.flaticon.com/free-icons/no-sound -->
+    <button class="icon-btn muted" id="mute-btn"><img src="icons/no-sound.png" alt="Mute audio"></button>
+    <!-- Push-to-talk button: mic-inactive/active icons by Kiranshastry & Maxim Basinski - https://www.flaticon.com/free-icons/mic -->
+    <button class="icon-btn" id="ptt-btn"><img src="icons/mic-inactive.png" alt="Microphone"></button>
+    <!-- Camera settings button: camera icon by Magnific - https://www.flaticon.com/free-icons/photography -->
+    <button class="icon-btn" id="cam-settings-btn"><img src="icons/camera.png" alt="Camera settings"></button>
   </div>
 </div>
 
@@ -616,17 +619,18 @@ function stopPtt() {
   if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
   pttActive = false;
   $('ptt-btn').classList.remove('talking');
-  $('ptt-btn').textContent = '🎤';
+  const img = $('ptt-btn').querySelector('img');
+  if (img) img.src = 'icons/mic-inactive.png';
 }
 
 let pttActive = false;
 const pttBtn = $('ptt-btn');
-pttBtn.textContent = '🎤';
 pttBtn.addEventListener('click', () => {
   pttActive = !pttActive;
   if (pttActive) {
     pttBtn.classList.add('talking');
-    pttBtn.textContent = '🎤';
+    const img = pttBtn.querySelector('img');
+    if (img) img.src = 'icons/mic-active.png';
     startPtt();
   } else {
     stopPtt();
