@@ -721,7 +721,7 @@ async function connect() {
   pc.onconnectionstatechange = () => {
     if (pc !== viewPc) return;
     const s = pc.connectionState;
-    if (s === 'connected')    { showCam(); setStatus('s-live', '● Live'); $('reconnect-overlay').classList.remove('visible'); }
+    if (s === 'connected')    { showCam(); setStatus('s-live', '● Live'); setTimeout(() => $('reconnect-overlay').classList.remove('visible'), 2000); }
     if (s === 'disconnected') { setStatus('s-connecting', 'Reconnecting…'); $('reconnect-overlay').classList.add('visible'); $('reconnect-status').textContent = 'Reconnecting…'; scheduleReconnect(); }
     if (s === 'failed')       { setStatus('s-error', 'Connection failed'); $('reconnect-overlay').classList.add('visible'); $('reconnect-status').textContent = 'Connection lost…'; scheduleReconnect(); }
   };
