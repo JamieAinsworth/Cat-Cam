@@ -415,9 +415,23 @@
       display: flex; align-items: center;
       gap: 10px; margin-bottom: 10px;
     }
+    .ctrl-col { display: flex; flex-direction: column; gap: 8px; }
     .ctrl-row.disabled { opacity: 0.35; pointer-events: none; }
     .ctrl-label { font-size: 0.82rem; flex: 0 0 130px; }
+    .ctrl-helper { font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
     .ctrl-slider { flex: 1; accent-color: var(--accent); }
+    .ctrl-select {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 10px 12px;
+      outline: none;
+      text-align: left;
+    }
+    .ctrl-select:focus { border-color: var(--accent); }
     .ctrl-value { font-size: 0.78rem; color: var(--muted); min-width: 38px; text-align: right; }
     .reset-btn {
       background: none; border: none; color: var(--muted);
@@ -521,6 +535,7 @@
       <h2>Camera Settings</h2>
       <button class="close-btn" id="cam-close">✕</button>
     </div>
+    <div id="audio-controls-body"><p style="color:var(--muted)">Loading microphones…</p></div>
     <div id="cam-controls-body"><p style="color:var(--muted)">Loading…</p></div>
   </div>
 <script>
@@ -566,10 +581,91 @@ let cfg = null;
 let viewPc = null;
 let pttPc = null;
 let pttStream = null;
+const MIC_AUTO_DEVICE = '__auto__';
+let selectedMicId = saved.micDeviceId || MIC_AUTO_DEVICE;
+let activeMicId = null;
+let activeMicLabel = '';
 let zoom = 1;
 let reconnectTimer = null;
 let showCamTimer = null;
 let isInCam = false;
+
+function isWebcamLikeLabel(label) {
+  return /(webcam|web cam|logitech|brio|usb camera|face.?time hd|c9\d\d|camera)/.test(label);
+}
+
+function scoreAudioInput(device) {
+  const label = (device.label || '').toLowerCase();
+  let score = 0;
+  if (/(phone|handset|built[- ]?in|internal|device microphone|microphone array)/.test(label)) score += 60;
+  if (/(mic|microphone)/.test(label)) score += 20;
+  if (isWebcamLikeLabel(label)) score -= 120;
+  return score;
+}
+
+function chooseAutoMicDevice(devices) {
+  if (!devices.length) return null;
+  const scored = [...devices].sort((a, b) => scoreAudioInput(b) - scoreAudioInput(a));
+  return scored[0] || devices[0];
+}
+
+async function listAudioInputs() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter(d => d.kind === 'audioinput');
+}
+
+async function createPreferredMicStream() {
+  const baseConstraints = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  };
+  let audioInputs = [];
+  try { audioInputs = await listAudioInputs(); } catch {}
+
+  let desiredId = null;
+  if (selectedMicId !== MIC_AUTO_DEVICE && audioInputs.some(d => d.deviceId === selectedMicId)) {
+    desiredId = selectedMicId;
+  } else {
+    desiredId = chooseAutoMicDevice(audioInputs)?.deviceId || null;
+  }
+
+  if (desiredId) {
+    try {
+      const exact = await navigator.mediaDevices.getUserMedia({
+        audio: { ...baseConstraints, deviceId: { exact: desiredId } },
+        video: false,
+      });
+      return { stream: exact, audioInputs };
+    } catch {
+      // If exact device selection fails, fall back to browser default below.
+    }
+  }
+
+  const fallback = await navigator.mediaDevices.getUserMedia({ audio: baseConstraints, video: false });
+  return { stream: fallback, audioInputs };
+}
+
+function updateActiveMicState(stream, audioInputs = []) {
+  const track = stream.getAudioTracks()[0];
+  const actualId = track?.getSettings?.().deviceId || null;
+  activeMicId = actualId;
+  const match = audioInputs.find(d => d.deviceId === actualId);
+  activeMicLabel = match?.label || '';
+}
+
+async function ensurePttStream(forceRenew = false) {
+  if (pttStream && !forceRenew) return true;
+  teardownPttStream();
+  try {
+    const { stream, audioInputs } = await createPreferredMicStream();
+    pttStream = stream;
+    updateActiveMicState(stream, audioInputs);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // ── Screen transitions ───────────────────────────────────────────────────────
 
@@ -624,9 +720,7 @@ function showCam() {
     acquireWakeLock();
     pushCamHistory();
     // pre-acquire mic so first press doesn't disrupt the stream
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-      .then(s => { pttStream = s; })
-      .catch(() => {});
+    ensurePttStream().then(() => loadMicControls()).catch(() => {});
   }, 4000);
 }
 
@@ -847,13 +941,10 @@ $('mute-btn').addEventListener('click', () => {
 // ── Push-to-talk (WHIP) ─────────────────────────────────────────────────────
 
 async function startPtt() {
-  if (!pttStream) {
-    try {
-      pttStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    } catch {
-      alert('Microphone access denied');
-      return;
-    }
+  const hasStream = await ensurePttStream();
+  if (!hasStream) {
+    alert('Microphone access denied');
+    return;
   }
 
   if (pttPc) { pttPc.close(); }
@@ -869,15 +960,24 @@ async function startPtt() {
   try {
     const res = await fetch(authUrl(`${cfg.host}/talk/whip`), {
       method: 'POST',
-      headers: buildHeaders(),
+      headers: {
+        ...buildHeaders(),
+        'Content-Type': 'application/sdp',
+      },
       body: pc.localDescription.sdp,
     });
     if (res.ok) {
-      await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() });
+      const answer = await res.text();
+      if (!answer || !answer.trim()) throw new Error('Empty WHIP answer');
+      await pc.setRemoteDescription({ type: 'answer', sdp: answer });
     } else {
+      setStatus('s-error', `Mic publish error ${res.status}`);
       stopPtt(); // revert if server rejected
     }
-  } catch { stopPtt(); }
+  } catch {
+    setStatus('s-error', 'Mic publish failed');
+    stopPtt();
+  }
 }
 
 function stopPtt() {
@@ -891,6 +991,8 @@ function stopPtt() {
 
 function teardownPttStream() {
   if (pttStream) { pttStream.getTracks().forEach(t => t.stop()); pttStream = null; }
+  activeMicId = null;
+  activeMicLabel = '';
 }
 
 let pttActive = false;
@@ -990,6 +1092,7 @@ $('cam-close').addEventListener('click',    () => camPanel.classList.remove('ope
 $('cam-backdrop').addEventListener('click', () => camPanel.classList.remove('open'));
 
 async function loadCamControls() {
+  loadMicControls();
   const body = $('cam-controls-body');
   try {
     const res = await fetch(`${camApiBase()}/camera`);
@@ -999,6 +1102,103 @@ async function loadCamControls() {
   } catch {
     body.innerHTML = '<p style="color:var(--danger);font-size:0.9rem">Could not reach camera API.<br>Check the API service is running on port 8081.</p>';
   }
+}
+
+async function loadMicControls() {
+  const body = $('audio-controls-body');
+  if (!body) return;
+
+  if (!navigator.mediaDevices?.enumerateDevices || !navigator.mediaDevices?.getUserMedia) {
+    body.innerHTML = '<p style="color:var(--danger);font-size:0.9rem">Microphone controls are not supported in this browser.</p>';
+    return;
+  }
+
+  try {
+    const devices = await listAudioInputs();
+    renderMicControls(devices, body);
+  } catch {
+    body.innerHTML = '<p style="color:var(--danger);font-size:0.9rem">Microphone list unavailable.<br>Grant mic access and reopen settings.</p>';
+  }
+}
+
+function renderMicControls(devices, container) {
+  const autoDevice = chooseAutoMicDevice(devices);
+  const autoLabel = autoDevice?.label || 'Browser default microphone';
+
+  container.innerHTML = `
+    <div class="ctrl-group">
+      <div class="ctrl-group-label">Talkback Microphone</div>
+      <div class="ctrl-col">
+        <select id="mic-select" class="ctrl-select"></select>
+        <p class="ctrl-helper" id="mic-helper"></p>
+      </div>
+    </div>
+  `;
+
+  const select = container.querySelector('#mic-select');
+  const helper = container.querySelector('#mic-helper');
+  select.innerHTML = '';
+
+  const autoOpt = document.createElement('option');
+  autoOpt.value = MIC_AUTO_DEVICE;
+  autoOpt.textContent = `Auto (${autoLabel})`;
+  select.appendChild(autoOpt);
+
+  devices.forEach((d, idx) => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = d.label || `Microphone ${idx + 1}`;
+    select.appendChild(opt);
+  });
+
+  if (selectedMicId !== MIC_AUTO_DEVICE && !devices.some(d => d.deviceId === selectedMicId)) {
+    selectedMicId = MIC_AUTO_DEVICE;
+  }
+  select.value = selectedMicId;
+
+  const setHelperText = () => {
+    if (activeMicLabel) {
+      helper.textContent = `Active input: ${activeMicLabel}`;
+      return;
+    }
+    if (activeMicId) {
+      helper.textContent = 'Active input detected, but label is hidden until permission is granted.';
+      return;
+    }
+    helper.textContent = 'Selected mic is used for push-to-talk.';
+  };
+  setHelperText();
+
+  select.addEventListener('change', async e => {
+    selectedMicId = e.target.value || MIC_AUTO_DEVICE;
+    saved.micDeviceId = selectedMicId;
+    saveCfg(saved);
+
+    const wasTalking = pttActive;
+    if (wasTalking) stopPtt();
+
+    const ready = await ensurePttStream(true);
+    if (!ready) {
+      alert('Unable to access selected microphone');
+      return;
+    }
+
+    if (wasTalking) {
+      pttActive = true;
+      $('ptt-btn').classList.add('talking');
+      const img = $('ptt-btn').querySelector('img');
+      if (img) img.src = 'icons/mic-active.png';
+      startPtt();
+    }
+
+    setHelperText();
+  });
+}
+
+if (navigator.mediaDevices?.addEventListener) {
+  navigator.mediaDevices.addEventListener('devicechange', () => {
+    if (camPanel.classList.contains('open')) loadMicControls();
+  });
 }
 
 function renderCamControls(controls, values, container) {
