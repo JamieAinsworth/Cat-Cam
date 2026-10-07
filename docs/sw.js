@@ -1,5 +1,5 @@
-const V = 'catcam-v1';
-const PRECACHE = ['./index.html', './manifest.json', './icon.svg'];
+const V = 'catcam-v2';
+const PRECACHE = ['./index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
