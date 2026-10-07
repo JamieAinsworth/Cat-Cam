@@ -1251,6 +1251,32 @@ window.addEventListener('popstate', () => {
   }
 });
 
+// Native Android hardware/gesture back is routed through Capacitor's App
+// plugin, not page history — popstate above is not reliably fired for it.
+// Requires the @capacitor/app plugin (see package.json) and `npx cap sync
+// android` in the native project.
+const capApp = window.Capacitor?.Plugins?.App;
+if (capApp?.addListener) {
+  capApp.addListener('backButton', () => {
+    if (discOverlay.classList.contains('open')) {
+      discOverlay.classList.remove('open');
+      return;
+    }
+    const camPanel = $('cam-settings');
+    if (camPanel.classList.contains('open')) {
+      camPanel.classList.remove('open');
+      return;
+    }
+    if (isInCam) {
+      showDisconnectPrompt();
+      return;
+    }
+    // Nothing left to go back to — fall back to Android's normal behavior.
+    if (capApp.minimizeApp) capApp.minimizeApp();
+    else capApp.exitApp?.();
+  });
+}
+
 // Push history state when entering cam so first back press is caught
 const _origShowCam = showCam;
 
