@@ -1166,22 +1166,21 @@ function renderCamControls(controls, values, container) {
         });
       } else {
         row.innerHTML = `<span class="ctrl-label">${c.label}</span>
-          <input type="range" class="ctrl-slider" min="0" max="100" step="5" value="${toPercent(val, c.min, c.max)}">
-          <span class="ctrl-value">${toPercent(val, c.min, c.max)}%</span>
+          <input type="range" class="ctrl-slider" min="${c.min}" max="${c.max}" step="1" value="${val}">
+          <span class="ctrl-value">${val}</span>
           <button class="reset-btn" title="Reset to default">↺</button>`;
         const slider  = row.querySelector('input[type=range]');
         const valEl   = row.querySelector('.ctrl-value');
         const resetEl = row.querySelector('.reset-btn');
         slider.addEventListener('input', () => {
-          valEl.textContent = slider.value + '%';
+          valEl.textContent = slider.value;
           navigator.vibrate && navigator.vibrate(8);
           clearTimeout(camDebounce);
-          camDebounce = setTimeout(() => setCamControl(key, fromPercent(+slider.value, c.min, c.max)), 300);
+          camDebounce = setTimeout(() => setCamControl(key, +slider.value), 300);
         });
         resetEl.addEventListener('click', () => {
-          const pct = toPercent(c.default, c.min, c.max);
-          slider.value = pct;
-          valEl.textContent = pct + '%';
+          slider.value = c.default;
+          valEl.textContent = c.default;
           setCamControl(key, c.default);
         });
       }
@@ -1202,10 +1201,6 @@ async function setCamControl(key, value) {
     });
   } catch { /* ignore */ }
 }
-
-// ── Slider percent helpers ───────────────────────────────────────────────────
-function toPercent(val, min, max) { return Math.round((val - min) / (max - min) * 100); }
-function fromPercent(pct, min, max) { return Math.round(min + (pct / 100) * (max - min)); }
 
 // ── Haptic feedback ──────────────────────────────────────────────────────────
 function haptic(ms = 10) { navigator.vibrate && navigator.vibrate(ms); }
