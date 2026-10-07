@@ -586,6 +586,7 @@ let zoom = 1;
 let reconnectTimer = null;
 let showCamTimer = null;
 let isInCam = false;
+let needsReconnectOnShow = false;
 
 function isWebcamLikeLabel(label) {
   return /(webcam|web cam|logitech|brio|usb camera|face.?time hd|c9\d\d|camera)/.test(label);
@@ -696,7 +697,26 @@ function releaseWakeLock() {
   if (wakeLock) { wakeLock.release(); wakeLock = null; }
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && isInCam) acquireWakeLock();
+  if (document.visibilityState === 'visible') {
+    if (isInCam) acquireWakeLock();
+    if (needsReconnectOnShow) {
+      needsReconnectOnShow = false;
+      connect();
+    }
+  } else if (isInCam && viewPc) {
+    // App backgrounded / tab hidden while viewing — disconnect immediately
+    // instead of leaving the stream open until the browser eventually times
+    // it out. Reconnects automatically once the app is viewed again.
+    needsReconnectOnShow = true;
+    cleanup();
+  }
+});
+
+// iOS Safari/PWA often only fires pagehide (not visibilitychange) when the
+// app is closed or evicted from the multitasking switcher — make sure the
+// stream is torn down there too.
+window.addEventListener('pagehide', () => {
+  if (viewPc) cleanup();
 });
 
 function showCam() {
