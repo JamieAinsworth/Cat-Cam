@@ -535,7 +535,6 @@
       <h2>Camera Settings</h2>
       <button class="close-btn" id="cam-close">✕</button>
     </div>
-    <div id="audio-controls-body"><p style="color:var(--muted)">Loading microphones…</p></div>
     <div id="cam-controls-body"><p style="color:var(--muted)">Loading…</p></div>
   </div>
 <script>
@@ -581,8 +580,6 @@ let cfg = null;
 let viewPc = null;
 let pttPc = null;
 let pttStream = null;
-const MIC_AUTO_DEVICE = '__auto__';
-let selectedMicId = saved.micDeviceId || MIC_AUTO_DEVICE;
 let activeMicId = null;
 let activeMicLabel = '';
 let zoom = 1;
@@ -623,12 +620,7 @@ async function createPreferredMicStream() {
   let audioInputs = [];
   try { audioInputs = await listAudioInputs(); } catch {}
 
-  let desiredId = null;
-  if (selectedMicId !== MIC_AUTO_DEVICE && audioInputs.some(d => d.deviceId === selectedMicId)) {
-    desiredId = selectedMicId;
-  } else {
-    desiredId = chooseAutoMicDevice(audioInputs)?.deviceId || null;
-  }
+  const desiredId = chooseAutoMicDevice(audioInputs)?.deviceId || null;
 
   if (desiredId) {
     try {
@@ -720,7 +712,7 @@ function showCam() {
     acquireWakeLock();
     pushCamHistory();
     // pre-acquire mic so first press doesn't disrupt the stream
-    ensurePttStream().then(() => loadMicControls()).catch(() => {});
+    ensurePttStream().catch(() => {});
   }, 4000);
 }
 
@@ -1092,7 +1084,6 @@ $('cam-close').addEventListener('click',    () => camPanel.classList.remove('ope
 $('cam-backdrop').addEventListener('click', () => camPanel.classList.remove('open'));
 
 async function loadCamControls() {
-  loadMicControls();
   const body = $('cam-controls-body');
   try {
     const res = await fetch(`${camApiBase()}/camera`);
@@ -1102,103 +1093,6 @@ async function loadCamControls() {
   } catch {
     body.innerHTML = '<p style="color:var(--danger);font-size:0.9rem">Could not reach camera API.<br>Check the API service is running on port 8081.</p>';
   }
-}
-
-async function loadMicControls() {
-  const body = $('audio-controls-body');
-  if (!body) return;
-
-  if (!navigator.mediaDevices?.enumerateDevices || !navigator.mediaDevices?.getUserMedia) {
-    body.innerHTML = '<p style="color:var(--danger);font-size:0.9rem">Microphone controls are not supported in this browser.</p>';
-    return;
-  }
-
-  try {
-    const devices = await listAudioInputs();
-    renderMicControls(devices, body);
-  } catch {
-    body.innerHTML = '<p style="color:var(--danger);font-size:0.9rem">Microphone list unavailable.<br>Grant mic access and reopen settings.</p>';
-  }
-}
-
-function renderMicControls(devices, container) {
-  const autoDevice = chooseAutoMicDevice(devices);
-  const autoLabel = autoDevice?.label || 'Browser default microphone';
-
-  container.innerHTML = `
-    <div class="ctrl-group">
-      <div class="ctrl-group-label">Talkback Microphone</div>
-      <div class="ctrl-col">
-        <select id="mic-select" class="ctrl-select"></select>
-        <p class="ctrl-helper" id="mic-helper"></p>
-      </div>
-    </div>
-  `;
-
-  const select = container.querySelector('#mic-select');
-  const helper = container.querySelector('#mic-helper');
-  select.innerHTML = '';
-
-  const autoOpt = document.createElement('option');
-  autoOpt.value = MIC_AUTO_DEVICE;
-  autoOpt.textContent = `Auto (${autoLabel})`;
-  select.appendChild(autoOpt);
-
-  devices.forEach((d, idx) => {
-    const opt = document.createElement('option');
-    opt.value = d.deviceId;
-    opt.textContent = d.label || `Microphone ${idx + 1}`;
-    select.appendChild(opt);
-  });
-
-  if (selectedMicId !== MIC_AUTO_DEVICE && !devices.some(d => d.deviceId === selectedMicId)) {
-    selectedMicId = MIC_AUTO_DEVICE;
-  }
-  select.value = selectedMicId;
-
-  const setHelperText = () => {
-    if (activeMicLabel) {
-      helper.textContent = `Active input: ${activeMicLabel}`;
-      return;
-    }
-    if (activeMicId) {
-      helper.textContent = 'Active input detected, but label is hidden until permission is granted.';
-      return;
-    }
-    helper.textContent = 'Selected mic is used for push-to-talk.';
-  };
-  setHelperText();
-
-  select.addEventListener('change', async e => {
-    selectedMicId = e.target.value || MIC_AUTO_DEVICE;
-    saved.micDeviceId = selectedMicId;
-    saveCfg(saved);
-
-    const wasTalking = pttActive;
-    if (wasTalking) stopPtt();
-
-    const ready = await ensurePttStream(true);
-    if (!ready) {
-      alert('Unable to access selected microphone');
-      return;
-    }
-
-    if (wasTalking) {
-      pttActive = true;
-      $('ptt-btn').classList.add('talking');
-      const img = $('ptt-btn').querySelector('img');
-      if (img) img.src = 'icons/mic-active.png';
-      startPtt();
-    }
-
-    setHelperText();
-  });
-}
-
-if (navigator.mediaDevices?.addEventListener) {
-  navigator.mediaDevices.addEventListener('devicechange', () => {
-    if (camPanel.classList.contains('open')) loadMicControls();
-  });
 }
 
 function renderCamControls(controls, values, container) {
